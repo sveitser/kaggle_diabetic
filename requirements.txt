@@ -1,0 +1,9 @@
+-e git+git@github.com:benanne/Lasagne.git@363d3740b6e38372b212d2be19346b6b45f643d7#egg=Lasagne-master
+matplotlib==1.4.3
+-e git+git@github.com:dnouri/nolearn.git@39fa6d4da7d03ac82c6e48ad4a10d7ba102a1658#egg=nolearn-master
+numpy==1.9.2
+pandas==0.16.0
+Pillow==2.7.0
+scikit-learn==0.16.1
+scipy==0.15.1
+Theano==0.7.0rc1
