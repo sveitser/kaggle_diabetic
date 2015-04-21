@@ -13,8 +13,9 @@ from PIL import Image
 # 2015 04 21
 # the images seem to be 3:2 width:height, but didn't verify for all of them
 SIZE = 128
-WIDTH = SIZE // 2 * 3 
-FOLDER = 'data/train'
+WIDTH = SIZE // 2 * 3
+ORIGINAL_PATH = 'data/train'
+CONVERT_PATH = 'data/res'
 
 
 def process(fname):
@@ -25,11 +26,18 @@ def process(fname):
     box = [(WIDTH - SIZE) // 2, 0, WIDTH - (WIDTH - SIZE) // 2, SIZE]
     img = img.crop(box)
 
-    img.save(fname.replace('jpeg', 'tiff').replace('train', 'res'))
+    img.save(fname.replace('jpeg', 'tiff').replace(ORIGINAL_PATH,
+                                                   CONVERT_PATH))
 
 
-def main(folder=FOLDER):
-    filenames = [os.path.join(dp, f) for dp, dn, fn in os.walk(folder) 
+def main():
+
+    try:
+        os.mkdir(CONVERT_PATH)
+    except OSError:
+        pass
+
+    filenames = [os.path.join(dp, f) for dp, dn, fn in os.walk(ORIGINAL_PATH)
                  for f in fn if f.endswith('jpeg')]
 
     # process in batches, sometimes weird things happen with Pool
