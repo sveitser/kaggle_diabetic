@@ -12,7 +12,7 @@ from PIL import Image
 
 # 2015 04 21
 # the images seem to be 3:2 width:height, but didn't verify for all of them
-SIZE = 128
+SIZE = 256
 WIDTH = SIZE // 2 * 3
 ORIGINAL_PATH = 'data/train'
 CONVERT_PATH = 'data/res'
