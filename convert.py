@@ -12,19 +12,24 @@ from PIL import Image
 
 # 2015 04 21
 # the images seem to be 3:2 width:height, but didn't verify for all of them
-SIZE = 256
-WIDTH = SIZE // 2 * 3
+RESIZE_H = 312
+RESIZE_W = RESIZE_H // 2 * 3
+CROP_SIZE = 192
 ORIGINAL_PATH = 'data/train'
 CONVERT_PATH = 'data/res'
 
 
 def process(fname):
     img = Image.open(fname)
-    img = img.resize([WIDTH, SIZE])
+    img = img.resize([RESIZE_W, RESIZE_H])
 
     # crop center square
-    box = [(WIDTH - SIZE) // 2, 0, WIDTH - (WIDTH - SIZE) // 2, SIZE]
-    img = img.crop(box)
+    left = (RESIZE_W - CROP_SIZE) // 2
+    top = (RESIZE_H - CROP_SIZE) // 2
+    right = (RESIZE_W + CROP_SIZE) // 2
+    bottom = (RESIZE_H + CROP_SIZE) // 2
+
+    img = img.crop([left, top, right, bottom])
 
     img.save(fname.replace('jpeg', 'tiff').replace(ORIGINAL_PATH,
                                                    CONVERT_PATH))
