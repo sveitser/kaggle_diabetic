@@ -24,6 +24,7 @@ W = 192
 H = W
 MAX_PIXEL_VALUE = 255
 N_CLASSES = 4
+MAX_ITER = 50
 
 Conv2DLayer = layers.cuda_convnet.Conv2DCCLayer
 MaxPool2DLayer = layers.cuda_convnet.MaxPool2DCCLayer
@@ -35,7 +36,6 @@ DropoutLayer = layers.DropoutLayer
 
 def float32(k):
     return np.cast['float32'](k)
-
 
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
@@ -57,16 +57,18 @@ class FlipBatchIterator(BatchIterator):
     def transform(self, Xb, yb):
         files, labels = super(FlipBatchIterator, self).transform(Xb, yb)
 
-        Xb = load_images(files) 
+        m = np.load('data/mean.npy').astype(np.float32)
+        Xb = load_images(files).astype(np.float32) - m
+
 
         # convert batch to float and bring values in range of [0, 1]
         Xb /= MAX_PIXEL_VALUE
-        
+
         # remove the mean per image and channel
         #Xb -= Xb.mean(axis=(2, 3))[:, :, np.newaxis, np.newaxis]
 
         # remove mean pixels per channel
-        Xb -= Xb.mean(axis=0)
+        #Xb -= Xb.mean(axis=0)
 
         # Flip half of the images in this batch at random in both dimensions
         bs = Xb.shape[0]
@@ -85,49 +87,52 @@ def get_net():
             ('input', layers.InputLayer),
             ('conv1', Conv2DLayer),
             ('pool1', MaxPool2DLayer),
-            #('drop1', DropoutLayer),
+            ('drop1', DropoutLayer),
             ('conv2', Conv2DLayer),
             ('pool2', MaxPool2DLayer),
-            #('drop2', DropoutLayer),
+            ('drop2', DropoutLayer),
             ('conv3', Conv2DLayer),
             ('pool3', MaxPool2DLayer),
-            #('drop3', DropoutLayer),
+            ('drop3', DropoutLayer),
             ('hidden4', layers.DenseLayer),
-            #('drop4', DropoutLayer),
+            ('drop4', DropoutLayer),
             ('hidden5', layers.DenseLayer),
-            #('drop5', DropoutLayer),
+            ('drop5', DropoutLayer),
             ('output', layers.DenseLayer),
             ],
         input_shape=(None, C, W, H),
-        conv1_num_filters=32, conv1_filter_size=(7, 7), 
+        conv1_num_filters=48, conv1_filter_size=(7, 7), 
         conv1_border_mode='same',
         conv1_strides=(2, 2),
-        conv1_W=init.GlorotUniform(0.01),
+        conv1_W=init.GlorotUniform(),
+        conv1_b=init.Constant(0.01),
 
         pool1_ds=(4, 4), pool1_strides=(2, 2),
-        #drop1_p=0.2,
+        drop1_p=0.2,
 
-        conv2_num_filters=64, conv2_filter_size=(5, 5), 
+        conv2_num_filters=128, conv2_filter_size=(5, 5), 
         conv2_border_mode='same',
         conv2_strides=(2, 2),
         conv2_nonlinearity=rectify,
-        conv2_W=init.GlorotUniform(0.01),
+        conv2_W=init.GlorotUniform(),
+        conv2_b=init.Constant(0.01),
 
         pool2_ds=(3, 3),
-        #drop2_p=0.2,
+        drop2_p=0.2,
 
-        conv3_num_filters=128, conv3_filter_size=(4, 4),
-        conv3_border_mode='full',
+        conv3_num_filters=256, conv3_filter_size=(4, 4),
+        conv3_border_mode='same',
         #conv3_strides=(2, 2),
         conv3_nonlinearity=rectify,
-        conv3_W=init.GlorotUniform(0.01),
+        conv3_W=init.GlorotUniform(),
+        conv3_b=init.Constant(0.01),
         
         pool3_ds=(3, 3),
-        #drop3_p=0.3,
+        drop3_p=0.3,
 
-        hidden4_num_units=1024, hidden4_nonlinearity=rectify,
+        hidden4_num_units=2048, hidden4_nonlinearity=rectify,
 
-        hidden5_num_units=1024, hidden5_nonlinearity=rectify,
+        hidden5_num_units=2048, hidden5_nonlinearity=rectify,
         
         output_num_units=1, 
         output_nonlinearity=None,
@@ -146,7 +151,7 @@ def get_net():
         use_label_encoder=False,
 
         regression=True,
-        max_epochs=200,
+        max_epochs=MAX_ITER,
         verbose=2,
     )
     return net
@@ -168,7 +173,7 @@ def get_names(files):
 def load_images(files):
     images = np.array([np.array(Image.open(f)).transpose(2, 1, 0) 
                        for f in files])
-    return images.astype(np.float32)
+    return images
 
 def main():
 
