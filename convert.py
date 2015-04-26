@@ -6,8 +6,8 @@ from __future__ import division, print_function
 import os
 from multiprocessing.pool import Pool
 
+import click
 import numpy as np
-
 from PIL import Image
 
 # 2015 04 21
@@ -15,11 +15,10 @@ from PIL import Image
 RESIZE_H = 312
 RESIZE_W = RESIZE_H // 2 * 3
 CROP_SIZE = 192
-ORIGINAL_PATH = 'data/train'
-CONVERT_PATH = 'data/res'
 
 
-def process(fname):
+def process(args):
+    directory, convert_directory, fname = args
     img = Image.open(fname)
     img = img.resize([RESIZE_W, RESIZE_H])
 
@@ -31,31 +30,39 @@ def process(fname):
 
     img = img.crop([left, top, right, bottom])
 
-    img.save(fname.replace('jpeg', 'tiff').replace(ORIGINAL_PATH,
-                                                   CONVERT_PATH))
+    img.save(fname.replace('jpeg', 'tiff').replace(directory,
+                                                   convert_directory))
 
 
-def main():
+@click.command()
+@click.option('--directory', default='data/train')
+def main(directory):
+
+    convert_directory = directory + '_res'
 
     try:
-        os.mkdir(CONVERT_PATH)
+        os.mkdir(convert_directory)
     except OSError:
         pass
 
-    filenames = [os.path.join(dp, f) for dp, dn, fn in os.walk(ORIGINAL_PATH)
+    filenames = [os.path.join(dp, f) for dp, dn, fn in os.walk(directory)
                  for f in fn if f.endswith('jpeg')]
 
+    n = len(filenames)
     # process in batches, sometimes weird things happen with Pool
     batchsize = 500
-    batches = len(filenames) // batchsize + 1
+    batches = n // batchsize + 1
 
     pool = Pool()
 
-    print("resizing images, this takes a while")
+    args = zip([directory] * n, [convert_directory] * n, filenames)
+
+    print("Resizing images in {} to {}, this takes a while."
+          "".format(directory, convert_directory))
 
     for i in range(batches):
         print("batch {:>2} / {}".format(i + 1, batches))
-        m = pool.map(process, filenames[i * batchsize: (i + 1) * batchsize])
+        m = pool.map(process, args[i * batchsize: (i + 1) * batchsize])
 
     pool.close()
 
