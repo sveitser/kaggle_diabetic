@@ -40,5 +40,7 @@ Currently treats the problem as regression problem with mean squared error.
   set.
 - ~~Use entire image of eye instead of center crop.~~
 - Try converting pixels into polar coordinates(?)
-- Balance classes.
+- Balance classes. *Mathis 
 - ...
+
+*working on
