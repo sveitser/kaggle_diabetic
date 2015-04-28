@@ -22,12 +22,16 @@ def main():
 
     mean = get_mean(files)
 
-    files, y = shuffle(files, y)
-
     f_train, f_test, y_train, y_test = cross_validation.train_test_split(
-            files, y, test_size=4000)
+            files, y, test_size=4000, random_state=RANDOM_STATE)
 
     net = create_net(mean)
+
+    try:
+        net.load_weights_from(WEIGHTS)
+        print("loaded weights from {}".format(WEIGHTS))
+    except Exception:
+        print("couldn't load weights starting from scratch")
 
     print("fitting ...")
     net.fit(f_train, y_train)

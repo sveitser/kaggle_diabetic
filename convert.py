@@ -12,9 +12,9 @@ from PIL import Image
 
 # 2015 04 21
 # the images seem to be 3:2 width:height, but didn't verify for all of them
-RESIZE_H = 312
+RESIZE_H = 256
 RESIZE_W = RESIZE_H // 2 * 3
-CROP_SIZE = 192
+CROP_SIZE = 256
 
 
 def process(args):
