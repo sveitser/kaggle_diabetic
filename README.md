@@ -34,10 +34,11 @@ Currently treats the problem as regression problem with mean squared error.
 - Can we somehow use the non-differentiable quadratic weighted kappa metric to
   train the neural network?
 - ~~Reduce Memory footprint by not loading entire training set into memory.~~
-- Use last layer weights to train sklearn estimator.
+- ~~Use last layer weights to train sklearn estimator.~~
 - ~~Evaluate quadratic weighted kappa metric.~~
 - Retrain on full training set after initial training with held out validation
   set.
-- Use entire image of eye instead of center crop.
+- ~~Use entire image of eye instead of center crop.~~
 - Try converting pixels into polar coordinates(?)
+- Balance classes.
 - ...

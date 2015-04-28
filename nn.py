@@ -129,7 +129,7 @@ class FlipBatchIterator(QueueIterator):
 
 
 class EarlyStopping(object):
-    def __init__(self, patience=20):
+    def __init__(self, patience=PATIENCE):
         self.patience = patience
         self.best_valid = np.inf
         self.best_valid_epoch = 0
