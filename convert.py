@@ -8,7 +8,7 @@ from multiprocessing.pool import Pool
 
 import click
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageChops, ImageFilter
 
 # 2015 04 21
 # the images seem to be 3:2 width:height, but didn't verify for all of them
@@ -20,23 +20,28 @@ CROP_SIZE = 256
 def process(args):
     directory, convert_directory, fname = args
     img = Image.open(fname)
-    img = img.resize([RESIZE_W, RESIZE_H])
 
-    # crop center square
-    left = (RESIZE_W - CROP_SIZE) // 2
-    top = (RESIZE_H - CROP_SIZE) // 2
-    right = (RESIZE_W + CROP_SIZE) // 2
-    bottom = (RESIZE_H + CROP_SIZE) // 2
+    blurred = img.filter(ImageFilter.BLUR)
+    ba = np.array(blurred)
+    _, w, _ = ba.shape
 
-    img = img.crop([left, top, right, bottom])
+    left_max = ba[:, : w / 64, :].max(axis=(0, 1)).astype(int)
+    right_max = ba[:, - w / 64:, :].max(axis=(0, 1)).astype(int)
+    max_bg = np.maximum(left_max, right_max)
 
-    img.save(fname.replace('jpeg', 'tiff').replace(directory,
-                                                   convert_directory))
+    foreground = (ba > max_bg + 10).astype(np.uint8)
+    bbox = Image.fromarray(foreground).getbbox()
+    cropped = img.crop(bbox)
+    resized = cropped.resize([RESIZE_H, RESIZE_H])
+
+    resized.save(fname.replace('jpeg', 'tiff').replace(directory,
+                                                       convert_directory))
 
 
 @click.command()
 @click.option('--directory', default='data/train')
-def main(directory):
+@click.option('--test', is_flag=True, default=False)
+def main(directory, test):
 
     convert_directory = directory + '_res'
 
@@ -47,18 +52,22 @@ def main(directory):
 
     filenames = [os.path.join(dp, f) for dp, dn, fn in os.walk(directory)
                  for f in fn if f.endswith('jpeg')]
+    filenames = sorted(filenames)
 
     n = len(filenames)
     # process in batches, sometimes weird things happen with Pool
     batchsize = 500
     batches = n // batchsize + 1
 
-    pool = Pool()
+    pool = Pool(8)
 
     args = zip([directory] * n, [convert_directory] * n, filenames)
 
     print("Resizing images in {} to {}, this takes a while."
           "".format(directory, convert_directory))
+
+    if test:
+        args = args[:batchsize]
 
     for i in range(batches):
         print("batch {:>2} / {}".format(i + 1, batches))

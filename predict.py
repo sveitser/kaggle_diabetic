@@ -1,16 +1,25 @@
-from util import *
+import click
+import numpy as np
+import pandas as pd
+
+import util
 from nn import create_net
+from definitions import *
 
-def predict():
+@click.command()
+@click.option('--cnf', default='config/best.py')
+def predict(cnf):
 
-    submission_filename = get_submission_filename()
+    layer_config = util.load_module(cnf)
+
+    submission_filename = util.get_submission_filename()
 
 
-    files = np.array(get_image_files(TEST_DIR))
-    names = get_names(files)
+    files = np.array(util.get_image_files(TEST_DIR))
+    names = util.get_names(files)
 
-    mean = get_mean(None)
-    net = create_net(mean)
+    mean = util.get_mean(None)
+    net = create_net(mean, layer_config.layers)
 
     print("loading trained network weights")
     net.load_weights_from(WEIGHTS)
@@ -19,7 +28,7 @@ def predict():
     Xt = net.transform(files)
     
     print("loading estimator")
-    estimator = pickle.load(open(ESTIMATOR_FILENAME, 'rb'))
+    estimator = util.pickle.load(open(ESTIMATOR_FILENAME, 'rb'))
 
     print("making predictions on test set")
     y_pred = np.round(estimator.predict(Xt)).astype(int)

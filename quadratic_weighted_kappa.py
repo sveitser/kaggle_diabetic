@@ -59,10 +59,14 @@ def quadratic_weighted_kappa(rater_a, rater_b, min_rating=None, max_rating=None)
     is the minimum possible rating, and max_rating is the maximum possible
     rating
     """
-    print(rater_a)
-    print(rater_b)
-    rater_a = np.array(rater_a, dtype=int)
-    rater_b = np.array(rater_b, dtype=int)
+    rater_a = np.array(rater_a)
+    rater_b = np.array(rater_b)
+
+    rater_a = np.round(rater_a).astype(int).ravel()
+    rater_a[~np.isfinite(rater_a)] = 0
+    rater_b = np.round(rater_b).astype(int).ravel()
+    rater_b[~np.isfinite(rater_b)] = 0
+
     assert(len(rater_a) == len(rater_b))
     if min_rating is None:
         min_rating = min(min(rater_a), min(rater_b))

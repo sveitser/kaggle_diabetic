@@ -1,4 +1,6 @@
 import Queue
+import multiprocessing
+from multiprocessing import Pool
 import threading
 
 import pandas as pd
@@ -10,21 +12,27 @@ from lasagne import init
 
 from lasagne.updates import nesterov_momentum
 from lasagne import updates
+from lasagne.objectives import Objective
 from nolearn.lasagne import NeuralNet, BatchIterator
 import theano
+from theano.tensor import Tensor as T
 
 from definitions import *
-from layers import get_nn_layers
-from util import load_images
+from quadratic_weighted_kappa import quadratic_weighted_kappa
+import util
 
-def create_net(mean):
+import augment
+
+
+def create_net(mean, layers):
     net = NeuralNet(
-        layers=get_nn_layers(),
-        input_shape=(None, C, W, H),
-        batch_iterator_train=FlipBatchIterator(batch_size=BATCH_SIZE,
-                                               mean=mean),
-        batch_iterator_test=FlipBatchIterator(batch_size=BATCH_SIZE,
-                                              mean=mean),
+        layers=layers,
+        batch_iterator_train=SingleIterator(batch_size=BATCH_SIZE,
+                                               mean=mean,
+                                               deterministic=False),
+        batch_iterator_test=SingleIterator(batch_size=BATCH_SIZE,
+                                              mean=mean,
+                                              deterministic=True),
         update=updates.nesterov_momentum,
         update_learning_rate=theano.shared(float32(INITIAL_LEARNING_RATE)),
         update_momentum=theano.shared(float32(INITIAL_MOMENTUM)),
@@ -33,11 +41,13 @@ def create_net(mean):
                            stop=0.0001),
             AdjustVariable('update_momentum', start=INITIAL_MOMENTUM,
                             stop=0.999),
-            EarlyStopping(),
+            EarlyStopping(loss=CUSTOM_SCORE_NAME),
         ],
+        custom_score=(CUSTOM_SCORE_NAME, util.kappa),
+        objective=RegularizedObjective,
         use_label_encoder=False,
         eval_size=0.1,
-        regression=True,
+        regression=REGRESSION,
         max_epochs=MAX_ITER,
         verbose=2,
     )
@@ -46,6 +56,18 @@ def create_net(mean):
 
 def float32(k):
     return np.cast['float32'](k)
+
+
+class RegularizedObjective(Objective):
+
+    def get_loss(self, input=None, target=None, deterministic=False, **kwargs):
+        loss = super(RegularizedObjective, self).get_loss(
+            input=input, target=target, deterministic=deterministic, **kwargs)
+        if not deterministic:
+            return loss \
+                + 0.0005 * lasagne.regularization.l2(self.input_layer)
+        else:
+            return loss
 
 
 class AdjustVariable(object):
@@ -66,12 +88,14 @@ class AdjustVariable(object):
 class QueueIterator(BatchIterator):
     """BatchIterator with seperate thread to do the image reading."""
     def __iter__(self):
-        queue = Queue.Queue(maxsize=10)
+        queue = Queue.Queue(maxsize=20)
         end_marker = object()
+
         def producer():
             for Xb, yb in super(QueueIterator, self).__iter__():
                 queue.put((np.array(Xb), np.array(yb)))
             queue.put(end_marker)
+
         thread = threading.Thread(target=producer)
         thread.daemon = True
         thread.start()
@@ -82,8 +106,7 @@ class QueueIterator(BatchIterator):
             queue.task_done()
             item = queue.get()
 
-
-class FlipBatchIterator(QueueIterator):
+class SingleIterator(QueueIterator):
     """BatchIterator with flipping and mean subtraction.
 
     Parameters
@@ -93,27 +116,35 @@ class FlipBatchIterator(QueueIterator):
 
     batch_size: int
     """
-    def __init__(self, mean, *args, **kwargs):
+    def __init__(self, mean, deterministic=False, *args, **kwargs):
         self.mean = mean
-        super(FlipBatchIterator, self).__init__(*args, **kwargs)
+        self.deterministic = deterministic
+        super(SingleIterator, self).__init__(*args, **kwargs)
+
+    def __iter__(self):
+
+        # make a copy of the original samples
+        if not hasattr(self, 'X_orig'):
+            print("making a copy of original samples")
+            self.X_orig = self.X.copy()
+            if self.y is not None:
+                self.y_orig = self.y.copy()
+
+        # balance classes in dataset
+        if self.y is not None and not self.deterministic:
+            n = len(self.y)
+            indices = util.balance_shuffle_indices(self.y_orig, 
+                                                   random_state=None)
+            self.X = self.X_orig[indices[:n]]
+            self.y = self.y_orig[indices[:n]]
+
+        return super(SingleIterator, self).__iter__()
 
     def transform(self, Xb, yb):
-        files, labels = super(FlipBatchIterator, self).transform(Xb, yb)
+        files, labels = super(SingleIterator, self).transform(Xb, yb)
+        bs = len(files)
 
-        # Doing the type conversion here might take quite a lot of time
-        # we could save some by preparing the data as numpy arrays
-        # of np.float32 directly.
-        Xb = load_images(files).astype(np.float32) - self.mean
-
-        # bring values in range of [-0.5, 0.5]
-        Xb /= MAX_PIXEL_VALUE
-
-        # Flip half of the images in this batch at random in both dimensions
-        bs = Xb.shape[0]
-        
-        # skip incomplete batches (use if some layers can't handle it)
-        #if bs != BATCH_SIZE:
-        #    raise StopIteration
+        Xb = (util.load_image(files) - self.mean) / MAX_PIXEL_VALUE
 
         indices = np.random.choice(bs, bs / 2, replace=False)
         Xb[indices] = Xb[indices, :, :, ::-1]
@@ -125,26 +156,56 @@ class FlipBatchIterator(QueueIterator):
         #for i, r in enumerate(rotations):
         #    Xb[i] = np.rot90(Xb[i].transpose(1, 2, 0), r).transpose(2, 0, 1)
 
-        return Xb, labels[:, np.newaxis] if labels is not None else None
+        if labels is not None:
+            if not REGRESSION:
+                labels = labels.astype(np.int32).ravel()
+            else:
+                labels = labels[:, np.newaxis]
+
+        return Xb, labels
+
+class DoubleIterator(QueueIterator):
+    def __init__(self, mean, deterministic=False, *args, **kwargs):
+        self.mean = mean
+        self.deterministic = deterministic
+        super(DoubleIterator, self).__init__(*args, **kwargs)
+
+    def transform(self, Xb, yb):
+        left_files, labels = super(QueueIterator, self).transform(Xb, yb)
+        right_files = [f.replace('left', 'right') for f in left_files]
+
+        Xb_l = (util.load_image(left_files) - self.mean) / MAX_PIXEL_VALUE
+        Xb_r = (util.load_image(right_files) - self.mean) / MAX_PIXEL_VALUE
+
+        # stack along x-axis of pixels
+        Xb = np.concatenate([Xb_l, Xb_r], axis=2)
+
+        return Xb, labels
 
 
 class EarlyStopping(object):
-    def __init__(self, patience=PATIENCE):
+    def __init__(self, patience=PATIENCE, loss='valid_loss',
+                 greater_is_better=True):
         self.patience = patience
         self.best_valid = np.inf
         self.best_valid_epoch = 0
         self.best_weights = None
+        self.loss = loss
+        self.greater_is_better = greater_is_better
 
     def __call__(self, nn, train_history):
-        current_valid = train_history[-1]['valid_loss']
+        current_valid = train_history[-1][self.loss] \
+            * (-1.0 if self.greater_is_better else 1.0)
         current_epoch = train_history[-1]['epoch']
         if current_valid < self.best_valid:
             self.best_valid = current_valid
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
+            nn.save_weights_to(WEIGHTS)
         elif self.best_valid_epoch + self.patience < current_epoch:
             print("Early stopping.")
             print("Best valid loss was {:.6f} at epoch {}.".format(
                 self.best_valid, self.best_valid_epoch))
             nn.load_weights_from(self.best_weights)
             raise StopIteration()
+
