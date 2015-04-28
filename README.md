@@ -15,8 +15,8 @@ Extract train/test images to ```data/train``` and ```data/test``` respectively.
 ```bash
 python convert.py --directory data/train # resize training set images
 python convert.py --directory data/test  # resize test set images
-python train_nn.py      # train a conv net for feature extraction.
-python fit.py           # extract features and fit regression model
+python train_nn.py      # train a conv net and extract features
+python fit.py           # fit sklearn estimator
 python predict.py       # make predictions on test set
 ```
 
