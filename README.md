@@ -41,6 +41,7 @@ Currently treats the problem as regression problem with mean squared error.
 - ~~Use entire image of eye instead of center crop.~~
 - Try converting pixels into polar coordinates(?)
 - Balance classes. *Mathis 
+- Check if there is a correlation between left and right eye and maybe train model with both eyes as input and two targets.
 - ...
 
 *working on
