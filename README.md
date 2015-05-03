@@ -25,7 +25,7 @@ The neural network code is mainly based on [this tutorial](http://danielnouri.or
 ### Notes
 #### Regression vs. Classification
 By default treats the problem as regression problem (layers in
-```config/clf.py```) with mean squared error or
+```config/best.py```) with mean squared error or
 as classification problem (layers in ```config/clf.py```) with softmax output
 layer and conversion to labels by weighted average over predicted
 probabilities. To use classification the ```REGRESSION``` variable in
