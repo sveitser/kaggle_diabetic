@@ -34,7 +34,7 @@ about the same for both approaches so far.
 
 #### Simultaneous Left and Right Eye Prediction
 - To train for both eyes simultaneously the ```nn.DoubleIterator``` can be used
-instead of `nn.SingleIterator``` but not everything is implemented yet.
+instead of ```nn.SingleIterator``` but not everything is implemented yet.
 - There is a network config in ```config/double.py```.
 - The variable  ```definitions.N_TARGETS``` needs to be set to 2.
 - Results are about the same as using each eye individually so far.
@@ -52,7 +52,7 @@ images. Some images have artifacts that it might make sense to remove.
   reduce the strength of the features which simply represent the shape of the 
   eye.
 - Random uniform rotations (currently disabled).
-- Random channel multiplication (function ```rgb_mix``, currently disabled).
+- Random channel multiplication (function ```rgb_mix```, currently disabled).
 
 ### TODO (in arbitrary order)
 - Augmentation (random cropping, rotation, shearing, ...)
