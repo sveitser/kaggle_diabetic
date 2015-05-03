@@ -1,31 +1,48 @@
+import importlib
+
+import click
 import numpy as np
 
 from sklearn.utils import shuffle
 from sklearn import cross_validation
-    
+
 from quadratic_weighted_kappa import quadratic_weighted_kappa
 
 from definitions import *
-from util import *
+import util
 from nn import create_net
 
-def main():
+@click.command()
+@click.option('--cnf', default='config/best.py',
+              help='Path or name of configuration module.')
+def main(cnf):
+
+    config = importlib.import_module(cnf.replace('/', '.').strip('.py'))
 
     print('loading data...')
-    files = np.array(get_image_files(TRAIN_DIR))
+    files = util.get_image_files(TRAIN_DIR)
+    #l_files = util.get_image_files(TRAIN_DIR, left_only=True)
 
+    names = util.get_names(files)
+    y = util.get_labels(names).astype(np.float32)
+    #y2 = util.get_labels(names, per_patient=True).astype(np.float32)
 
-    print(len(files))
+    f_train, f_test, y_train, y_test = util.split(files, y)
+    #f_train, f_test, y_train, y_test = util.split(l_files, y2)
 
-    names = get_names(files)
-    y = get_labels(names).astype(np.float32)
+    # add load 50% pseudo label images
+    #test_files, _ = util.split(util.get_image_files(TEST_DIR), 
+    #                           test_size=len(f_train) / 2)
+    #test_names = util.get_names(test_files)
+    #pseudo_labels = util.get_labels(test_names,
+    #                                PSEUDO_LABEL_FILE).astype(np.float32)
 
-    mean = get_mean(files)
+    #f_train = np.hstack([f_train, test_files])
+    #y_train = np.hstack([y_train, pseudo_labels])
 
-    f_train, f_test, y_train, y_test = cross_validation.train_test_split(
-            files, y, test_size=4000, random_state=RANDOM_STATE)
+    mean = util.get_mean(files)
 
-    net = create_net(mean)
+    net = create_net(mean, config.layers)
 
     try:
         net.load_weights_from(WEIGHTS)

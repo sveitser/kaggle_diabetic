@@ -1,6 +1,11 @@
 import lasagne
 from lasagne import layers, init
+import lasagne.layers.normalization
+from lasagne.layers.noise import GaussianNoiseLayer
 from lasagne.nonlinearities import softmax, rectify, leaky_rectify
+from lasagne.layers.normalization import LocalResponseNormalization2DLayer
+
+from theano import tensor as T
 
 from definitions import *
 
@@ -27,44 +32,43 @@ except ImportError:
 
 def conv_params(num_filters, filter_size=3, border_mode='same',
          nonlinearity=leaky_rectify, W=init.GlorotUniform(),
-         b=init.Constant(0.01), **kwargs):
+         b=init.Constant(0.01), untie_biases=True, **kwargs):
     args = {
         'num_filters': num_filters,
         'filter_size': filter_size, 'border_mode': border_mode,
-        'nonlinearity': nonlinearity, 'W': W, 'b': b
+        'nonlinearity': nonlinearity, 'W': W, 'b': b,
+        'untie_biases': untie_biases,
     }
     args.update(kwargs)
     return args
 
 
 def pool_params(pool_size=3, stride=(2, 2), **kwargs):
-    args = {'pool_size': pool_size, 'stride': stride}
+    args = {
+        'pool_size': pool_size, 
+        'stride': stride,
+    }
     args.update(kwargs)
     return args
 
+class RGBMixLayer(layers.Layer):
+    def __init__(self, incoming, alpha=0.5, **kwargs):
+        """
+        :parameters:
+            - incoming: input layer or shape
+            - alpha: see equation above
+            - k: see equation above
+            - beta: see equation above
+            - n: number of adjacent channels to normalize over.
+        """
+        super(RGBMixLayer, self).__init__(incoming, **kwargs)
+        self.alpha = alpha
+        raise NotImplementedError
 
-def get_nn_layers():
-    nn_layers = [
-        (layers.InputLayer, {'shape': (None, C, W, H)}),
-        (Conv2DLayer, conv_params(48, stride=(2, 2))),
-        (MaxPool2DLayer, pool_params()),
-        (layers.DropoutLayer, {'p': 0.2}),
-        (Conv2DLayer, conv_params(128, stride=(2, 2))),
-        (MaxPool2DLayer, pool_params()),
-        (layers.DropoutLayer, {'p': 0.2}),
-        (Conv2DLayer, conv_params(256)),
-        (Conv2DLayer, conv_params(256)),
-        (Conv2DLayer, conv_params(256)),
-        (MaxPool2DLayer, pool_params()),
-        (layers.DropoutLayer, {'p': 0.2}),
-        (Conv2DLayer, conv_params(384)),
-        (MaxPool2DLayer, pool_params(stride=(1, 1))),
-        (layers.DropoutLayer, {}),
-        (layers.DenseLayer, {'num_units': 2048}),
-        (layers.FeaturePoolLayer, {'pool_size': 2}),
-        (layers.DropoutLayer, {}),
-        (layers.DenseLayer, {'num_units': 2048}),
-        (layers.FeaturePoolLayer, {'pool_size': 2}),
-        (layers.DenseLayer, {'num_units': 1}),
-    ]
-    return nn_layers
+    def get_output_shape_for(self, input_shape):
+        return input_shape
+
+    def get_output_for(self, input, **kwargs):
+        pass
+
+

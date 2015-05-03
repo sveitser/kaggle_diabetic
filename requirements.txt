@@ -1,5 +1,5 @@
--e git+git@github.com:benanne/Lasagne.git@363d3740b6e38372b212d2be19346b6b45f643d7#egg=Lasagne-master
--e git+https://github.com/sveitser/nolearn.git@43c5b7e0fee1f676af396ba42ec503c8b317c3e5#egg=nolearn-origin_transform
+-e git+git@github.com:benanne/Lasagne.git#egg=Lasagne
+-e git+git@github.com:sveitser/nolearn.git@transform#egg=nolearn-origin_transform
 click==3.3
 matplotlib==1.4.3
 numpy==1.9.2
@@ -7,4 +7,4 @@ pandas==0.16.0
 Pillow==2.7.0
 scikit-learn==0.16.1
 scipy==0.15.1
-Theano==0.7.0rc1
+-e git+git@github.com:Theano/Theano.git#egg=Theano
