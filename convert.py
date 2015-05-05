@@ -40,10 +40,9 @@ def process(args):
 
 @click.command()
 @click.option('--directory', default='data/train')
+@click.option('--convert_directory', default='data/train_res')
 @click.option('--test', is_flag=True, default=False)
-def main(directory, test):
-
-    convert_directory = directory + '_res'
+def main(directory, convert_directory, test):
 
     try:
         os.mkdir(convert_directory)

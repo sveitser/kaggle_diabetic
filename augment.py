@@ -7,12 +7,20 @@ import skimage.transform
 
 import util
 
-from definitions import MAX_PIXEL_VALUE
+from definitions import *
+
+def crop_random(img, w=W, h=H):
+    x_offset, y_offset = [np.random.randint(dim - s)
+                          for dim, s in zip(img.shape[1:], [w, h])]
+    return img[:, x_offset: x_offset + w, y_offset: y_offset + h]
 
 
-def crop_random(img, size):
-    x_offset, y_offset = [np.random.randint(dim - size) for dim in img.shape]
-    return img[x_offset: x_offset + size, y_offset: y_offset + size]
+def crop(img, w=W, h=H):
+    lx, ly = img.shape[1:]
+    x0, x1 = (lx - w) // 2, lx - (lx - w + 1) // 2
+    y0, y1 = (ly - h) // 2, ly - (ly - h + 1) // 2
+    cropped = img[:, x0: x1, y0: y1]
+    return cropped
 
 
 def rgb_mix(img):
@@ -26,14 +34,15 @@ def rotate_uniform(img):
 
 
 def augment(img):
-    return rgb_mix(img)
+    return crop_random(img)
 
 
-def load_transform(args):
-    fname, mean, deterministic = args
+def load_transform(fname, mean, deterministic):
     img = (util.load_image(fname) - mean) / MAX_PIXEL_VALUE
+    #fname, mean, deterministic = args
+    #img = (util.load_image(fname) - mean) / MAX_PIXEL_VALUE
     if deterministic:
-        return img
+        return crop(img)
     else:
-        return augment(img)
+        return crop_random(img)
 

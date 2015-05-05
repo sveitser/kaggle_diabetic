@@ -121,30 +121,24 @@ class SingleIterator(QueueIterator):
         self.deterministic = deterministic
         super(SingleIterator, self).__init__(*args, **kwargs)
 
-    def __iter__(self):
-
-        # make a copy of the original samples
-        if not hasattr(self, 'X_orig'):
-            print("making a copy of original samples")
-            self.X_orig = self.X.copy()
-            if self.y is not None:
-                self.y_orig = self.y.copy()
-
+    def __call__(self, X, y=None):
         # balance classes in dataset
-        if self.y is not None and not self.deterministic:
-            n = len(self.y)
-            indices = util.balance_shuffle_indices(self.y_orig, 
-                                                   random_state=None)
-            self.X = self.X_orig[indices[:n]]
-            self.y = self.y_orig[indices[:n]]
+        if y is not None and not self.deterministic:
+            n = len(y)
+            indices = util.balance_shuffle_indices(y, random_state=None)
+            X = X[indices[:n]]
+            y = y[indices[:n]]
 
-        return super(SingleIterator, self).__iter__()
+        return super(SingleIterator, self).__call__(X, y)
 
     def transform(self, Xb, yb):
         files, labels = super(SingleIterator, self).transform(Xb, yb)
         bs = len(files)
 
-        Xb = (util.load_image(files) - self.mean) / MAX_PIXEL_VALUE
+        #Xb = (util.load_image(files) - self.mean) / MAX_PIXEL_VALUE
+        Xb = np.array([augment.load_transform(f, self.mean,
+                                              self.deterministic)
+                       for f in files], dtype=np.float32)
 
         indices = np.random.choice(bs, bs / 2, replace=False)
         Xb[indices] = Xb[indices, :, :, ::-1]
