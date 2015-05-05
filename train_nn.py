@@ -53,13 +53,12 @@ def main(cnf):
     print("fitting ...")
     net.fit(f_train, y_train)
 
-    print("saving weights")
-    net.save_weights_to(WEIGHTS)
+    print("saving final weights to final_{}".format(WEIGHTS))
+    net.save_weights_to('final_{}'.format(WEIGHTS))
 
     print("extracting features ...")
     X_train = net.transform(f_train)
     X_test = net.transform(f_test)
-
 
     np.save(open(TRAIN_FEATURES, 'wb'), X_train)
     np.save(open(TEST_FEATURES, 'wb'), X_test)

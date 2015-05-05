@@ -25,7 +25,8 @@ MEMORY = Memory(cachedir=CACHE_DIR, verbose=0, compress=0)
 
 def compute_mean(files, batch_size=BATCH_SIZE):
     """Load images in files in batches and compute mean."""
-    m = np.zeros([C, W, H])
+    first_image = load_image_uint_one(files[0])
+    m = np.zeros(first_image.shape)
     for i in range(0, len(files), batch_size):
         images = load_image(files[i : i + batch_size])
         m += images.sum(axis=0)
@@ -136,7 +137,7 @@ def balance_shuffle_indices(y, random_state=None, weight=0.1):
 
 def split(*args, **kwargs):
     return cross_validation.train_test_split(*args,
-                                             test_size=kwargs.get('test_size'), 
+                                             test_size=kwargs.get('test_size'),
                                              random_state=RANDOM_STATE)
 
 def timeit(f):
@@ -160,5 +161,10 @@ def kappa(y_true, y_pred):
     return quadratic_weighted_kappa(y_true, y_pred)
 
 
+def kappa_from_proba(w, p, y_true):
+    return kappa(y_true, p.dot(w))
+
 def load_module(mod):
     return importlib.import_module(mod.replace('/', '.').strip('.py'))
+
+

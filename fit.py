@@ -59,7 +59,8 @@ def fit(cnf, balance):
     y_pred = estimator.predict(X_test)
     y_pred_int = np.round(y_pred).astype(int)
 
-    #estimator = GradientBoostingClassifier(n_estimators=100)
+    #estimator = GradientBoostingClassifier(n_estimators=20, verbose=2)
+    #estimator = ExtraTreesClassifier(n_estimators=100, n_jobs=-1, verbose=2)
     #print("fitting classifier")
     #estimator.fit(X_train, y_train, sample_weight=sample_weight)
     #y_pred = estimator.predict_proba(X_test)
