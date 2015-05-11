@@ -22,16 +22,17 @@ def predict(cnf):
     net = create_net(mean, layer_config.layers)
 
     print("loading trained network weights")
-    net.load_weights_from(WEIGHTS)
+    net.load_params_from(WEIGHTS)
 
-    print("extracting features of test set")
-    Xt = net.transform(files)
+    #print("extracting features of test set")
+    #Xt = net.transform(files)
     
-    print("loading estimator")
-    estimator = util.pickle.load(open(ESTIMATOR_FILENAME, 'rb'))
+    #print("loading estimator")
+    #estimator = util.pickle.load(open(ESTIMATOR_FILENAME, 'rb'))
 
     print("making predictions on test set")
-    y_pred = np.round(estimator.predict(Xt)).astype(int)
+    #y_pred = np.round(estimator.predict(Xt)).astype(int)
+    y_pred = np.round(net.predict(files)).astype(int).flatten()
 
     image_column = pd.Series(names, name='image')
     level_column = pd.Series(y_pred, name='level')

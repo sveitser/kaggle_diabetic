@@ -4,7 +4,7 @@ LABEL_FILE = 'data/trainLabels.csv'
 PSEUDO_LABEL_FILE = 'data/testLabels.csv'
 MEAN_FILE = 'data/mean.npy'
 
-TRAIN_DIR = 'data/train_res'
+TRAIN_DIR = '/tmp/train_res'
 TEST_DIR = 'data/test_res'
 
 # cache files for neural net feature extraction
@@ -26,15 +26,17 @@ REGRESSION = True
 
 CUSTOM_SCORE_NAME = 'kappa'
 
-RANDOM_STATE = 42
+RANDOM_STATE = 9
 
 MAX_PIXEL_VALUE = 255
-MAX_ITER = 500
-PATIENCE = 100
+TEST_ITER = 1
+MAX_ITER = 1000
+PATIENCE = 200
 BATCH_SIZE = 128
-INITIAL_LEARNING_RATE = 0.01
+INITIAL_LEARNING_RATE = 0.005
 INITIAL_MOMENTUM = 0.9
-
+STD = [70.57616967, 51.79715616,43.08553464]
+MEAN = [108.7016983, 75.91925049, 54.36722183]
 SUBMISSION = 'data/sub'
 
 # number of class samples in training set

@@ -18,7 +18,7 @@ def plot(n, cnf):
     mean = util.get_mean()
     files = util.get_image_files(TRAIN_DIR)
     net = nn.create_net(mean, cnf.layers)
-    net.load_weights_from(WEIGHTS)
+    net.load_params_from(WEIGHTS)
 
     filename = files[n]
 

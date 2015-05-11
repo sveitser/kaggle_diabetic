@@ -58,7 +58,7 @@ def main(directory, convert_directory, test):
     batchsize = 500
     batches = n // batchsize + 1
 
-    pool = Pool(8)
+    pool = Pool()
 
     args = zip([directory] * n, [convert_directory] * n, filenames)
 

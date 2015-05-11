@@ -28,6 +28,9 @@ def main(cnf):
     #y2 = util.get_labels(names, per_patient=True).astype(np.float32)
 
     f_train, f_test, y_train, y_test = util.split(files, y)
+
+    print(len(f_train))
+    print(len(f_test))
     #f_train, f_test, y_train, y_test = util.split(l_files, y2)
 
     # add load 50% pseudo label images
@@ -45,7 +48,7 @@ def main(cnf):
     net = create_net(mean, config.layers)
 
     try:
-        net.load_weights_from(WEIGHTS)
+        net.load_params_from(WEIGHTS)
         print("loaded weights from {}".format(WEIGHTS))
     except Exception:
         print("couldn't load weights starting from scratch")
@@ -54,16 +57,7 @@ def main(cnf):
     net.fit(f_train, y_train)
 
     print("saving final weights to final_{}".format(WEIGHTS))
-    net.save_weights_to('final_{}'.format(WEIGHTS))
-
-    print("extracting features ...")
-    X_train = net.transform(f_train)
-    X_test = net.transform(f_test)
-
-    np.save(open(TRAIN_FEATURES, 'wb'), X_train)
-    np.save(open(TEST_FEATURES, 'wb'), X_test)
-    np.save(open(TRAIN_LABELS, 'wb'), y_train)
-    np.save(open(TEST_LABELS, 'wb'), y_test)
+    net.save_params_to('final_{}'.format(WEIGHTS))
 
     print("making predictions on validation set")
     y_pred = np.round(net.predict(f_test)).astype(int)

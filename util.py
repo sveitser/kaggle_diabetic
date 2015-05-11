@@ -21,16 +21,45 @@ from joblib import Memory
 from quadratic_weighted_kappa import quadratic_weighted_kappa
 from definitions import *
 
-MEMORY = Memory(cachedir=CACHE_DIR, verbose=0, compress=0)
+MEMORY = Memory(cachedir=CACHE_DIR, verbose=4, compress=0)
 
-def compute_mean(files, batch_size=BATCH_SIZE):
+
+def timeit(f):
+    def wrapped_f(*args, **kwargs):
+        t_in = time.time()
+        ret_val = f(*args, **kwargs)
+        print("{}.{} took {:.5f} seconds".format(
+            getattr(f, 'im_class', '.').split('.', 1)[1],
+            f.__name__, time.time() - t_in))
+        return ret_val
+    return wrapped_f
+
+
+def compute_mean(files, batch_size=BATCH_SIZE, axis=0):
     """Load images in files in batches and compute mean."""
     first_image = load_image_uint_one(files[0])
     m = np.zeros(first_image.shape)
     for i in range(0, len(files), batch_size):
         images = load_image(files[i : i + batch_size])
-        m += images.sum(axis=0)
+        m += images.sum(axis=axis)
     return (m / len(files)).astype(np.float32)
+
+
+def std(files, batch_size=BATCH_SIZE):
+    #data = np.array(load_image_uint(files), dtype=np.uint8)
+    s = np.zeros(3)
+    s2 = np.zeros(3)
+    shape = None
+    for i in range(0, len(files), batch_size):
+        images = np.array(load_image_uint(files[i : i + batch_size]),
+                          dtype=np.float64)
+        shape = images.shape
+        s += images.sum(axis=(0, 2, 3))
+        s2 += np.power(images, 2).sum(axis=(0, 2, 3))
+        print(s, s2)
+    n = len(files) * shape[2] * shape[3]
+    var = (s2 - s**2.0 / n) / (n - 1)
+    return np.sqrt(var)
 
 
 def get_mean(files=None, cached=True):
@@ -71,13 +100,12 @@ def get_names(files):
     return [os.path.basename(x).split('.')[0] for x in files]
 
 
-@MEMORY.cache
 def load_image_uint_one(filename):
     img = np.array(Image.open(filename), dtype=np.uint8).transpose(2, 1, 0)
-    black = np.sum(img, axis=0) < np.mean(img)
-    for c in [0, 1, 2]:
-        ch = img[c]
-        ch[black] = np.mean(ch[~black])
+    #black = np.sum(img, axis=0) < np.mean(img)
+    #for c in [0, 1, 2]:
+    #    ch = img[c]
+    #    ch[black] = np.mean(ch[~black])
     return img
 
 
@@ -90,6 +118,24 @@ def load_image_uint(filename):
 
 def load_image(filename):
     return np.array(load_image_uint(filename), dtype=np.float32)
+
+
+def load_normalized(files):
+    # hack so we don't need to pass the arguments for mean and std
+    mean = get_mean()
+    X = load_image(files) - mean
+    X /= np.array(STD, dtype=np.float32)[np.newaxis, :, np.newaxis,
+                                         np.newaxis]
+    return X
+
+
+def normalize(batch):
+    mean = get_mean().mean(axis=(1, 2))
+    X = np.array(batch, np.float32) - np.array(mean, dtype=np.float32)[
+            np.newaxis, :, np.newaxis, np.newaxis]
+    X /= np.array(STD, dtype=np.float32)[np.newaxis, :, np.newaxis,
+                                         np.newaxis]
+    return X
 
 
 def load_patient(name, left=True, right=True, path=TRAIN_DIR):
@@ -122,7 +168,7 @@ def get_commit_sha():
     return output.strip().decode('utf-8')
 
 
-def balance_shuffle_indices(y, random_state=None, weight=0.1):
+def balance_shuffle_indices(y, random_state=None, weight=0.2):
     y = np.asarray(y)
     counter = Counter(y)
     max_count = np.max(counter.values())
@@ -135,20 +181,15 @@ def balance_shuffle_indices(y, random_state=None, weight=0.1):
     return shuffle(np.hstack(indices), random_state=random_state)
 
 
-def split(*args, **kwargs):
-    return cross_validation.train_test_split(*args,
-                                             test_size=kwargs.get('test_size'),
-                                             random_state=RANDOM_STATE)
+def split_indices(y, test_size=0.1, random_state=RANDOM_STATE):
+    spl = cross_validation.StratifiedShuffleSplit(y, test_size=test_size, 
+                                                  random_state=random_state,
+                                                  n_iter=1)
+    return next(iter(spl))
 
-def timeit(f):
-    def wrapped_f(*args, **kwargs):
-        t_in = time.time()
-        ret_val = f(*args, **kwargs)
-        print("{}.{} took {:.5f} seconds".format(
-            getattr(f, 'im_class', '.').split('.', 1)[1],
-            f.__name__, time.time() - t_in))
-        return ret_val
-    return wrapped_f
+def split(X, y, test_size=0.1, random_state=RANDOM_STATE):
+    train, test = split_indices(y, test_size, random_state)
+    return X[train], X[test], y[train], y[test]
 
 
 def kappa(y_true, y_pred):

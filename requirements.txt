@@ -1,5 +1,6 @@
 -e git+git@github.com:benanne/Lasagne.git#egg=Lasagne
--e git+git@github.com:sveitser/nolearn.git@transform#egg=nolearn-origin_transform
+-e git+git@github.com:dnouri/nolearn.git#egg=nolearn
+-e git+git@github.com:Theano/Theano.git#egg=Theano
 click==3.3
 matplotlib==1.4.3
 numpy==1.9.2
@@ -7,4 +8,3 @@ pandas==0.16.0
 Pillow==2.7.0
 scikit-learn==0.16.1
 scipy==0.15.1
--e git+git@github.com:Theano/Theano.git#egg=Theano
