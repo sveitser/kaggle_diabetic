@@ -19,10 +19,16 @@ def predict(cnf):
     names = util.get_names(files)
 
     mean = util.get_mean(None)
-    net = create_net(mean, layer_config.layers)
+    net = create_net(mean, layer_config.layers, tta=True)
 
     print("loading trained network weights")
     net.load_params_from(WEIGHTS)
+
+    preds = []
+    for i in range(50):
+        print ("predicting {}".format(i))
+        preds.append(net.predict(files).flatten())
+    y_pred = np.array(preds).mean(axis=0)
 
     #print("extracting features of test set")
     #Xt = net.transform(files)
@@ -30,9 +36,9 @@ def predict(cnf):
     #print("loading estimator")
     #estimator = util.pickle.load(open(ESTIMATOR_FILENAME, 'rb'))
 
-    print("making predictions on test set")
+    #print("making predictions on test set")
     #y_pred = np.round(estimator.predict(Xt)).astype(int)
-    y_pred = np.round(net.predict(files)).astype(int).flatten()
+    y_pred = np.round(net.predict(files)).astype(int)
 
     image_column = pd.Series(names, name='image')
     level_column = pd.Series(y_pred, name='level')

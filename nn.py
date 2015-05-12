@@ -23,23 +23,15 @@ from iterator import SingleIterator
 import augment
 
 
-def iter_kappa(y_true, y_pred, iterations=TEST_ITER):
-    print(y_true.shape)
-    print(y_pred.shape)
-    y_true = y_pred.reshape(iterations, -1).mean(axis=0)
-    y_pred = y_pred.reshape(iterations, -1).mean(axis=0)
-    return util.kappa(y_true, y_pred)
-
-
-def create_net(mean, layers):
+def create_net(mean, layers, tta=False):
     net = AggNet(
         n_eval=TEST_ITER,
         layers=layers,
         batch_iterator_train=SingleIterator(batch_size=BATCH_SIZE,
                                             mean=mean, deterministic=False,
                                             resample=True),
-        batch_iterator_test=SingleIterator(batch_size=BATCH_SIZE,
-                                           mean=mean, deterministic=True,
+        batch_iterator_test=SingleIterator(batch_size=BATCH_SIZE, mean=mean, 
+                                           deterministic=False if tta else True,
                                            resample=False,
                                            iterations=TEST_ITER),
         update=updates.nesterov_momentum,
