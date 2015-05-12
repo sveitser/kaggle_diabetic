@@ -30,6 +30,8 @@ def predict(cnf):
         preds.append(net.predict(files).flatten())
     y_pred = np.array(preds).mean(axis=0)
 
+    print(y_pred.shape)
+
     #print("extracting features of test set")
     #Xt = net.transform(files)
     
@@ -38,7 +40,7 @@ def predict(cnf):
 
     #print("making predictions on test set")
     #y_pred = np.round(estimator.predict(Xt)).astype(int)
-    y_pred = np.round(net.predict(files)).astype(int)
+    #y_pred = np.round(net.predict(files)).astype(int).flatten()
 
     image_column = pd.Series(names, name='image')
     level_column = pd.Series(y_pred, name='level')
