@@ -10,16 +10,15 @@ from definitions import *
 @click.option('--cnf', default='config/best.py')
 def predict(cnf):
 
-    layer_config = util.load_module(cnf)
+    model = util.load_module(cnf).model
 
     submission_filename = util.get_submission_filename()
-
 
     files = np.array(util.get_image_files(TEST_DIR))
     names = util.get_names(files)
 
     mean = util.get_mean(None)
-    net = create_net(mean, tta=True)
+    net = create_net()
 
     print("loading trained network weights")
     net.load_params_from(WEIGHTS)
