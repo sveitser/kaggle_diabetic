@@ -7,6 +7,7 @@ cnf = {
     'w': 448,
     'h': 448,
     'train_dir': 'data/train_medium',
+    'test_dir': 'data/test_medium',
     'batch_size_train': 48,
     'batch_size_test': 8,
     #'mean': [112.26],

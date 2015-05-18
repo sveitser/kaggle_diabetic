@@ -14,14 +14,13 @@ def predict(cnf):
 
     submission_filename = util.get_submission_filename()
 
-    files = np.array(util.get_image_files(TEST_DIR))
+    files = np.array(util.get_image_files(model.get('test_dir', TEST_DIR)))
     names = util.get_names(files)
 
-    mean = util.get_mean(None)
-    net = create_net()
+    net = create_net(model)
 
     print("loading trained network weights")
-    net.load_params_from(WEIGHTS)
+    net.load_params_from(model.get('weights_file', WEIGHTS))
 
     preds = []
     for i in range(20):
