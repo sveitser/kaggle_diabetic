@@ -1,5 +1,9 @@
 from __future__ import print_function
+from collections import Counter
+from datetime import datetime
+import pprint
 from time import time
+import sys
 
 import pandas as pd
 import numpy as np
@@ -10,7 +14,9 @@ from lasagne import init
 
 from lasagne.updates import nesterov_momentum
 from lasagne import updates
-from lasagne.objectives import Objective
+from lasagne.objectives import (MaskedObjective, Objective,
+                                categorical_crossentropy)
+from lasagne.layers import get_output
 from nolearn.lasagne import NeuralNet, BatchIterator
 import theano
 from theano import tensor as T
@@ -23,19 +29,35 @@ from iterator import SingleIterator
 import augment
 
 
-def create_net(mean, layers, tta=False):
-    net = AggNet(
-        n_eval=TEST_ITER,
-        layers=layers,
-        batch_iterator_train=SingleIterator(batch_size=BATCH_SIZE,
-                                            mean=mean, deterministic=False,
-                                            resample=True),
-        batch_iterator_test=SingleIterator(batch_size=BATCH_SIZE, mean=mean, 
-                                           deterministic=False if tta else True,
-                                           resample=False,
-                                           iterations=TEST_ITER),
+#def ordistic_loss(y_true, y_pred):
+#    zero = T.fvector('zero')
+#    T.maximum(T.abs_(y_true - y_pred) - 1, zero)
+
+#def mask_from_labels(target):
+#    # coeffs for polynomial  balanced weights for training set vs range(5)
+#    #w = [1, 5, 3, 8, 10]
+#    #w = np.array([ -0.16940318,   0.63021986,   2.52366008, -11.51726516,
+#    #              11.13624402,   0.27218907], dtype=np.float32)
+#    w = np.array([ -0.20611039,   0.76943727,   3.03613623, -14.40281366,
+#                   14.80335056,   1.        ], dtype=np.float32) / 10.0
+#    return w[-1] + w[-2] * target + w[-3] * target**2 + w[-4] * target**3 \
+#           + w[-5] * target**4
+
+def loss(y_true, y_pred):
+    return abs(y_true - y_pred)
+
+def create_net(model):
+    net = Net(
+        layers=model.layers,
+        batch_iterator_train=SingleIterator(
+            model, batch_size=model.get('batch_size_train', BATCH_SIZE),
+            deterministic=False, resample=True),
+        batch_iterator_test=SingleIterator(
+            model, batch_size=model.get('batch_size_test', BATCH_SIZE), 
+            deterministic=False, resample=False),
         update=updates.nesterov_momentum,
-        update_learning_rate=theano.shared(float32(INITIAL_LEARNING_RATE)),
+        update_learning_rate=theano.shared(
+            float32(model.get('learning_rate', INITIAL_LEARNING_RATE))),
         update_momentum=theano.shared(float32(INITIAL_MOMENTUM)),
         on_epoch_finished=[
             #AdjustVariable('update_learning_rate', start=INITIAL_LEARNING_RATE,
@@ -49,10 +71,13 @@ def create_net(mean, layers, tta=False):
                                 patience=PATIENCE // 2),
         ],
         custom_score=(CUSTOM_SCORE_NAME, util.kappa),
+        #loss_mask=util.get_mask(y),
         objective=RegularizedObjective,
+        #objective=MyMasked,
+        #objective_loss_function=loss,
         use_label_encoder=False,
         eval_size=0.1,
-        regression=REGRESSION,
+        regression=model.get('regression', REGRESSION),
         max_epochs=MAX_ITER,
         verbose=2,
     )
@@ -66,6 +91,7 @@ def float32(k):
 class RegularizedObjective(Objective):
 
     def get_loss(self, input=None, target=None, deterministic=False, **kwargs):
+
         loss = super(RegularizedObjective, self).get_loss(
             input=input, target=target, deterministic=deterministic, **kwargs)
         if not deterministic:
@@ -140,7 +166,7 @@ class EarlyStopping(ScoreMonitor):
 
 
 class AdjustLearningRate(ScoreMonitor):
-    def __init__(self, name='update_learning_rate', factor=0.1, 
+    def __init__(self, name='update_learning_rate', factor=DECAY_FACTOR, 
                  *args, **kwargs):
         self.name = name
         self.factor = factor
@@ -178,10 +204,7 @@ class QueueIterator(BatchIterator):
             item = queue.get()
 
 
-class AggNet(NeuralNet):
-    def __init__(self, n_eval=1, *args, **kwargs):
-        self.n_eval = n_eval
-        super(AggNet, self).__init__(*args, **kwargs)
+class Net(NeuralNet):
 
     def train_test_split(self, X, y, eval_size):
         if eval_size:
@@ -242,8 +265,11 @@ class AggNet(NeuralNet):
             # XXX breaking the Lasagne interface a little:
             obj.layers = layers
 
-        loss_train = obj.get_loss(X_batch, y_batch)
-        loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
+
+        loss_params = self._get_params_for('loss')
+        loss_train = obj.get_loss(X_batch, y_batch, **loss_params)
+        loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True,
+                                 **loss_params)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
         transform = list(layers.values())[-2].get_output(X_batch,
                                                          deterministic=True)
@@ -296,111 +322,43 @@ class AggNet(NeuralNet):
             'transform_iter_': transform_iter
         }
 
+    def _check_for_unused_kwargs(self):
+        names = list(self.layers_.keys()) + ['update', 'objective', 'loss']
+        for k in self._kwarg_keys:
+            for n in names:
+                prefix = '{}_'.format(n)
+                if k.startswith(prefix):
+                    break
+            else:
+                raise ValueError("Unused kwarg: {}".format(k))
+
+    def fit(self, X, y):
+        self.objective.mask = util.get_mask(y)
+        return super(Net, self).fit(X, y)
 
     def transform(self, X):
         features = []
         for Xb, yb in self.batch_iterator_test(X):
             features.append(self.transform_iter_(Xb))
         return np.vstack(features)
-
-
-    def train_loop(self, X, y):
-        X_train, X_valid, y_train, y_valid = self.train_test_split(
-            X, y, self.eval_size)
-
-        on_epoch_finished = self.on_epoch_finished
-        if not isinstance(on_epoch_finished, (list, tuple)):
-            on_epoch_finished = [on_epoch_finished]
-
-        on_training_finished = self.on_training_finished
-        if not isinstance(on_training_finished, (list, tuple)):
-            on_training_finished = [on_training_finished]
-
-        epoch = 0
-        best_valid_loss = (
-            min([row['valid_loss'] for row in self.train_history_]) if
-            self.train_history_ else np.inf
-            )
-        best_train_loss = (
-            min([row['train_loss'] for row in self.train_history_]) if
-            self.train_history_ else np.inf
-            )
-        first_iteration = True
-        num_epochs_past = len(self.train_history_)
-
-        while epoch < self.max_epochs:
-            epoch += 1
-
-            train_losses = []
-            valid_losses = []
-            valid_accuracies = []
-            custom_score = []
-
-            t0 = time()
-
-            for Xb, yb in self.batch_iterator_train(X_train, y_train):
-                batch_train_loss = self.train_iter_(Xb, yb)
-                train_losses.append(batch_train_loss)
-
-
-            for Xb, yb in self.batch_iterator_test(X_valid, y_valid):
-                batch_valid_loss, accuracy = self.eval_iter_(Xb, yb)
-                valid_losses.append(batch_valid_loss)
-                valid_accuracies.append(accuracy)
-
-            if self.custom_score:
-                y_probs = []
-                y_trues = []
-                for Xb, yb in self.batch_iterator_test(X_valid, y_valid):
-                    y_probs.append(self.predict_iter_(Xb))
-                    y_trues.append(yb)
-
-                y_prob = np.vstack(y_probs)
-                y_true = np.vstack(y_trues)
-                
-                y_true = y_true.ravel().reshape(self.n_eval, -1).mean(axis=0)
-                y_prob = y_prob.ravel().reshape(self.n_eval, -1).mean(axis=0)
-
-                custom_score = self.custom_score[1](y_true, y_prob)
-
-            avg_train_loss = np.mean(train_losses)
-            avg_valid_loss = np.mean(valid_losses)
-            avg_valid_accuracy = np.mean(valid_accuracies)
-
-            if custom_score:
-                avg_custom_score = np.mean(custom_score)
-
-            if avg_train_loss < best_train_loss:
-                best_train_loss = avg_train_loss
-            if avg_valid_loss < best_valid_loss:
-                best_valid_loss = avg_valid_loss
-
-            info = {
-                'epoch': num_epochs_past + epoch,
-                'train_loss': avg_train_loss,
-                'train_loss_best': best_train_loss == avg_train_loss,
-                'valid_loss': avg_valid_loss,
-                'valid_loss_best': best_valid_loss == avg_valid_loss,
-                'valid_accuracy': avg_valid_accuracy,
-                'dur': time() - t0,
-                }
-            if self.custom_score:
-                info[self.custom_score[0]] = custom_score
-            self.train_history_.append(info)
-
-            try:
-                for func in on_epoch_finished:
-                    func(self, self.train_history_)
-            except StopIteration:
-                break
-
-        for func in on_training_finished:
-            func(self, self.train_history_)
     
     def predict_proba(self, X):
         probas = []
         for Xb, yb in self.batch_iterator_test(X):
-            probas.append(self.predict_iter_(Xb))
+
+            # add dummy data for nervana kernels that need batch_size % 8 = 0
+            missing = (8 - len(Xb) % 8) % 8
+            if missing != 0:
+                tiles = np.ceil(float(missing) / len(Xb)).astype(int)
+                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:8]
+
+            preds = self.predict_iter_(Xb)
+
+            if missing != 0:
+                preds = preds[-missing:]
+
+            probas.append(preds)
+
         return np.vstack(probas)
 
     def predict(self, X):
@@ -411,3 +369,64 @@ class AggNet(NeuralNet):
             if self.use_label_encoder:
                 y_pred = self.enc_.inverse_transform(y_pred)
             return y_pred
+
+
+#class MyMasked(MaskedObjective):
+#    def get_loss(self, input=None, target=None, mask=None,
+#                 aggregation=None, deterministic=False, **kwargs):
+#        """
+#        Get loss scalar expression
+#
+#        :parameters:
+#            - input : (default `None`) an expression that results in the
+#                input data that is passed to the network
+#            - target : (default `None`) an expression that results in the
+#                desired output that the network is being trained to generate
+#                given the input
+#            - mask : None for no mask, or a soft mask that is the same shape
+#                as - or broadcast-able to the shape of - the result of
+#                applying the loss function. It selects/weights the
+#                contributions of the resulting loss values
+#            - aggregation : None to use the value passed to the
+#                constructor or a value to override it
+#            - kwargs : additional keyword arguments passed to `input_layer`'s
+#                `get_output` method
+#
+#        :returns:
+#            - output : loss expressions
+#        """
+#        print(input, input.shape)
+#        print(target, target.shape)
+#        print(mask, mask.shape)
+#        print(np.unique(mask))
+#
+#        network_output = get_output(self.input_layer, input, **kwargs)
+#        if target is None:
+#            target = self.target_var
+#        if mask is None:
+#            mask = self.mask_var
+#
+#        if aggregation not in self._valid_aggregation:
+#            raise ValueError('aggregation must be \'mean\', \'sum\', '
+#                             '\'normalized_sum\' or None, '
+#                             'not {0}'.format(aggregation))
+#
+#        # Get aggregation value passed to constructor if None
+#        if aggregation is None:
+#            aggregation = self.aggregation
+#
+#        if deterministic:
+#            masked_losses = self.loss_function(network_output, target)
+#        else:
+#            masked_losses = self.loss_function(network_output, target) \
+#                    * mask_from_labels(target)
+#
+#        if aggregation is None or aggregation == 'mean':
+#            return masked_losses.mean()
+#        elif aggregation == 'sum':
+#            return masked_losses.sum()
+#        elif aggregation == 'normalized_sum':
+#            return masked_losses.sum() / mask.sum()
+#        else:
+#            raise RuntimeError('This should have been caught earlier')
+#

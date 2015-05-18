@@ -1,37 +1,47 @@
 from layers import *
 
-from lasagne import layers 
-
 from model import Model
 
 cnf = {
-    'w': 224,
-    'h': 224,
-    'train_dir': 'data/train_res',
-    'batch_size': 128,
+    'name': 'micro',
+    'w': 448,
+    'h': 448,
+    'train_dir': 'data/train_medium',
+    'batch_size_train': 48,
+    'batch_size_test': 8,
+    #'mean': [112.26],
+    #'std': [26.63],
+    'mean': [ 108.73683167, 75.54026794,  53.80962753],
+    'std': [ 70.44262987, 51.35997035, 42.51656026],
+    'learning_rate': 0.0005,
+    'regression': True,
+    #'n_classes': 3,
     'rotate': True,
-    'learning_rate': 0.005,
     'balance': 0.1,
 }
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size'], C, cnf['w'], cnf['h'])}),
-    (Conv2DLayer, conv_params(24, stride=(2, 2))),
+    (InputLayer, {'shape': (cnf['batch_size_train'], C, cnf['w'], cnf['h'])}),
+    (Conv2DLayer, conv_params(24, filter_size=(3, 3), stride=(2, 2))),
     (Conv2DLayer, conv_params(24)),
     #Conv2DLayer, conv_params(32)),
-    (RMSPoolLayer, pool_params()),
+    (MaxPool2DLayer, pool_params()),
     (Conv2DLayer, conv_params(48, stride=(2, 2))),
     (Conv2DLayer, conv_params(48)),
     (Conv2DLayer, conv_params(48)),
-    (RMSPoolLayer, pool_params()),
+    (MaxPool2DLayer, pool_params()),
     (Conv2DLayer, conv_params(96)),
     (Conv2DLayer, conv_params(96)),
     (Conv2DLayer, conv_params(96)),
-    (RMSPoolLayer, pool_params()),
+    (MaxPool2DLayer, pool_params()),
     (Conv2DLayer, conv_params(192)),
     (Conv2DLayer, conv_params(192)),
     (Conv2DLayer, conv_params(192)),
-    (RMSPoolLayer, pool_params(stride=(1, 1))),
+    (MaxPool2DLayer, pool_params()),
+    (Conv2DLayer, conv_params(384)),
+    (Conv2DLayer, conv_params(384)),
+    (Conv2DLayer, conv_params(384)),
+    (RMSPoolLayer, pool_params(stride=(2, 2))), # pad to get even x/y
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),
     (FeaturePoolLayer, {'pool_size': 2}),

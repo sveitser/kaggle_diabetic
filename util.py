@@ -51,12 +51,12 @@ def std(files, batch_size=BATCH_SIZE):
     s2 = np.zeros(3)
     shape = None
     for i in range(0, len(files), batch_size):
+        print("done with {:>3} / {} images".format(i, len(files)))
         images = np.array(load_image_uint(files[i : i + batch_size]),
                           dtype=np.float64)
         shape = images.shape
         s += images.sum(axis=(0, 2, 3))
         s2 += np.power(images, 2).sum(axis=(0, 2, 3))
-        print(s, s2)
     n = len(files) * shape[2] * shape[3]
     var = (s2 - s**2.0 / n) / (n - 1)
     return np.sqrt(var)
@@ -93,7 +93,9 @@ def get_image_files(datadir, left_only=False):
     if left_only:
         fs = [f for f in fs if 'left' in f]
 
-    return np.array(sorted([x for x in fs if x.endswith('.tiff')]))
+    return np.array(sorted([x for x in fs  if 
+                            any([x.endswith(ext) 
+                                 for ext in ['tiff', 'jpeg']])]))
 
 
 def get_names(files):
@@ -101,7 +103,12 @@ def get_names(files):
 
 
 def load_image_uint_one(filename):
-    img = np.array(Image.open(filename), dtype=np.uint8).transpose(2, 1, 0)
+    img = np.array(Image.open(filename), dtype=np.uint8)
+    if len(img.shape) == 3:
+        img = img.transpose(2, 1, 0)
+    else:
+        img = np.array([img])
+
     #black = np.sum(img, axis=0) < np.mean(img)
     #for c in [0, 1, 2]:
     #    ch = img[c]
@@ -168,16 +175,17 @@ def get_commit_sha():
     return output.strip().decode('utf-8')
 
 
-def balance_shuffle_indices(y, random_state=None, weight=0.2):
+def balance_shuffle_indices(y, random_state=None, weight=BALANCE_WEIGHT):
     y = np.asarray(y)
     counter = Counter(y)
     max_count = np.max(counter.values())
     indices = []
     for cls, count in counter.items():
         ratio = weight * max_count / count + (1 - weight)
-        idx = np.where(y == cls)[0].repeat(
-                np.ceil(ratio).astype(int))[:max_count]
-        indices.append(idx)
+        idx = np.tile(np.where(y == cls)[0], 
+                      np.ceil(ratio).astype(int))
+        np.random.shuffle(idx)
+        indices.append(idx[:max_count])
     return shuffle(np.hstack(indices), random_state=random_state)
 
 
@@ -199,13 +207,25 @@ def kappa(y_true, y_pred):
         y_true = y_true.dot(range(y_true.shape[1]))
     if len(y_pred.shape) > 1 and y_pred.shape[1] > 1:
         y_pred = y_pred.dot(range(y_pred.shape[1]))
-    return quadratic_weighted_kappa(y_true, y_pred)
+    try:
+        return quadratic_weighted_kappa(y_true, y_pred)
+    except IndexError:
+        return np.nan
 
 
 def kappa_from_proba(w, p, y_true):
     return kappa(y_true, p.dot(w))
 
+
 def load_module(mod):
     return importlib.import_module(mod.replace('/', '.').strip('.py'))
 
+
+def get_mask(y):
+    counts = Counter(y)
+    mask = np.zeros(y.shape, dtype=np.float32)
+    for k, v in counts.items():
+        mask[y == k] = 1.0 / v
+    mask /= np.mean(mask)
+    return mask
 

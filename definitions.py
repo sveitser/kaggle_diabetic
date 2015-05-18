@@ -4,7 +4,7 @@ LABEL_FILE = 'data/trainLabels.csv'
 PSEUDO_LABEL_FILE = 'data/testLabels.csv'
 MEAN_FILE = 'data/mean.npy'
 
-TRAIN_DIR = '/tmp/train_res'
+TRAIN_DIR = 'data/train_res'
 TEST_DIR = 'data/test_res'
 
 # cache files for neural net feature extraction
@@ -31,16 +31,19 @@ RANDOM_STATE = 9
 MAX_PIXEL_VALUE = 255
 TEST_ITER = 1
 MAX_ITER = 1000
-PATIENCE = 200
+PATIENCE = 100
 BATCH_SIZE = 128
 INITIAL_LEARNING_RATE = 0.005
+DECAY_FACTOR = 0.02
 INITIAL_MOMENTUM = 0.9
 STD = [70.57616967, 51.79715616,43.08553464]
 MEAN = [108.7016983, 75.91925049, 54.36722183]
 SUBMISSION = 'data/sub'
+BALANCE_WEIGHT = 0.5
 
 # number of class samples in training set
 #CLASSES = [25810, 5292, 2443, 873, 708]
+OCCURENCES = {0: 25810, 2: 5292, 1: 2443, 3: 873, 4: 708}
 
 # print the config to the terminal
 print("############################# CONFIG #################################")

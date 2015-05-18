@@ -1,4 +1,4 @@
-import importlib
+import sys
 
 import click
 import numpy as np
@@ -12,19 +12,43 @@ from definitions import *
 import util
 from nn import create_net
 
+
+class Log(object):
+    def __init__(self, fname):
+        self.terminal = sys.stdout
+        self.log = open(fname, 'a')
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self, *args, **kwargs):
+        self.terminal.flush()
+        self.log.flush()
+
+
 @click.command()
 @click.option('--cnf', default='config/best.py',
               help='Path or name of configuration module.')
 def main(cnf):
 
-    config = importlib.import_module(cnf.replace('/', '.').strip('.py'))
+    model = util.load_module(cnf).model
 
-    print('loading data...')
-    files = util.get_image_files(TRAIN_DIR)
-    #l_files = util.get_image_files(TRAIN_DIR, left_only=True)
+    #sys.stdout = Log(model.logfile)
+
+    files = util.get_image_files(model.cnf.get('train_dir', TRAIN_DIR))
+    #files = files[:1000]
 
     names = util.get_names(files)
     y = util.get_labels(names).astype(np.float32)
+
+    #idx = (y <= 2)
+    #y = y[idx]
+    #files = files[idx]
+    #y[y > 1] = 1
+
+    from collections import Counter
+    print(Counter(y))
     #y2 = util.get_labels(names, per_patient=True).astype(np.float32)
 
     f_train, f_test, y_train, y_test = util.split(files, y)
@@ -45,12 +69,12 @@ def main(cnf):
 
     mean = util.get_mean(files)
 
-    net = create_net(mean, config.layers)
+    net = create_net(model)
 
     try:
         net.load_params_from(WEIGHTS)
         print("loaded weights from {}".format(WEIGHTS))
-    except Exception:
+    except IOError:
         print("couldn't load weights starting from scratch")
 
     print("fitting ...")

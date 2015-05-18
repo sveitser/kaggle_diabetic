@@ -12,7 +12,7 @@ from definitions import *
 def crop_random(img, w=W, h=H):
     x_offset, y_offset = [np.random.randint(dim - s)
                           for dim, s in zip(img.shape[1:], [w, h])]
-    return img[:, x_offset: x_offset + w, y_offset: y_offset + h]
+    return img[:, x_offset: x_offset + w, y_offset: y_offset + h].copy()
 
 
 def crop(img, w=W, h=H):
@@ -20,7 +20,7 @@ def crop(img, w=W, h=H):
     x0, x1 = (lx - w) // 2, lx - (lx - w + 1) // 2
     y0, y1 = (ly - h) // 2, ly - (ly - h + 1) // 2
     cropped = img[:, x0: x1, y0: y1]
-    return cropped
+    return cropped.copy()
 
 
 def rgb_mix(img):
@@ -201,3 +201,25 @@ def load_perturbed(fname):
     img = util.load_image_uint_one(fname).astype(np.float32) / 255.0
     return perturb(img) * 255
 
+
+def load(fname, *args, **kwargs):
+    #tin = time.time()
+    w = kwargs['w']
+    h = kwargs['h']
+    img = util.load_image(fname)
+    if kwargs.get('deterministic') is True:
+        img = crop(img, w=w, h=h)
+    elif kwargs.get('rotate') is True:
+        img = perturb(img / 255.0, target_shape=(w, h)) * 255.0
+    else:
+        img = crop_random(img, w=w, h=h)
+    #t2 = time.time()
+    #print('load crop took {}'.format(t2 - tin))
+    np.subtract(img, np.array(kwargs['mean'], dtype=np.float32)[:, np.newaxis, 
+                                                                np.newaxis],
+                out=img)
+    np.divide(img, np.array(kwargs['std'], dtype=np.float32)[:, np.newaxis, 
+                                                             np.newaxis],
+              out=img)
+    #print('normalize took {}'.format(time.time() - t2))
+    return img.copy()

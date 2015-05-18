@@ -19,18 +19,17 @@ def predict(cnf):
     names = util.get_names(files)
 
     mean = util.get_mean(None)
-    net = create_net(mean, layer_config.layers, tta=True)
+    net = create_net(mean, tta=True)
 
     print("loading trained network weights")
     net.load_params_from(WEIGHTS)
 
     preds = []
-    for i in range(50):
+    for i in range(20):
         print ("predicting {}".format(i))
         preds.append(net.predict(files).flatten())
-    y_pred = np.array(preds).mean(axis=0)
 
-    print(y_pred.shape)
+    y_pred = np.round(np.array(preds).mean(axis=0)).astype(int)
 
     #print("extracting features of test set")
     #Xt = net.transform(files)
