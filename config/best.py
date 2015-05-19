@@ -2,6 +2,7 @@ from layers import *
 
 layers = [
     (layers.InputLayer, {'shape': (None, C, W, H)}),
+    (GaussianNoiseLayer, {'sigma': 0.05}),
     (Conv2DLayer, conv_params(48, stride=(2, 2), filter_size=(3, 3))),
     (MaxPool2DLayer, pool_params()),
     (Conv2DLayer, conv_params(96, stride=(2, 2))),

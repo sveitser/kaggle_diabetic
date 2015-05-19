@@ -21,16 +21,45 @@ from joblib import Memory
 from quadratic_weighted_kappa import quadratic_weighted_kappa
 from definitions import *
 
-MEMORY = Memory(cachedir=CACHE_DIR, verbose=0, compress=0)
+MEMORY = Memory(cachedir=CACHE_DIR, verbose=4, compress=0)
 
-def compute_mean(files, batch_size=BATCH_SIZE):
+
+def timeit(f):
+    def wrapped_f(*args, **kwargs):
+        t_in = time.time()
+        ret_val = f(*args, **kwargs)
+        print("{}.{} took {:.5f} seconds".format(
+            getattr(f, 'im_class', '.').split('.', 1)[1],
+            f.__name__, time.time() - t_in))
+        return ret_val
+    return wrapped_f
+
+
+def compute_mean(files, batch_size=BATCH_SIZE, axis=0):
     """Load images in files in batches and compute mean."""
     first_image = load_image_uint_one(files[0])
     m = np.zeros(first_image.shape)
     for i in range(0, len(files), batch_size):
         images = load_image(files[i : i + batch_size])
-        m += images.sum(axis=0)
+        m += images.sum(axis=axis)
     return (m / len(files)).astype(np.float32)
+
+
+def std(files, batch_size=BATCH_SIZE):
+    #data = np.array(load_image_uint(files), dtype=np.uint8)
+    s = np.zeros(3)
+    s2 = np.zeros(3)
+    shape = None
+    for i in range(0, len(files), batch_size):
+        print("done with {:>3} / {} images".format(i, len(files)))
+        images = np.array(load_image_uint(files[i : i + batch_size]),
+                          dtype=np.float64)
+        shape = images.shape
+        s += images.sum(axis=(0, 2, 3))
+        s2 += np.power(images, 2).sum(axis=(0, 2, 3))
+    n = len(files) * shape[2] * shape[3]
+    var = (s2 - s**2.0 / n) / (n - 1)
+    return np.sqrt(var)
 
 
 def get_mean(files=None, cached=True):
@@ -64,20 +93,26 @@ def get_image_files(datadir, left_only=False):
     if left_only:
         fs = [f for f in fs if 'left' in f]
 
-    return np.array(sorted([x for x in fs if x.endswith('.tiff')]))
+    return np.array(sorted([x for x in fs  if 
+                            any([x.endswith(ext) 
+                                 for ext in ['tiff', 'jpeg']])]))
 
 
 def get_names(files):
     return [os.path.basename(x).split('.')[0] for x in files]
 
 
-@MEMORY.cache
 def load_image_uint_one(filename):
-    img = np.array(Image.open(filename), dtype=np.uint8).transpose(2, 1, 0)
-    black = np.sum(img, axis=0) < np.mean(img)
-    for c in [0, 1, 2]:
-        ch = img[c]
-        ch[black] = np.mean(ch[~black])
+    img = np.array(Image.open(filename), dtype=np.uint8)
+    if len(img.shape) == 3:
+        img = img.transpose(2, 1, 0)
+    else:
+        img = np.array([img])
+
+    #black = np.sum(img, axis=0) < np.mean(img)
+    #for c in [0, 1, 2]:
+    #    ch = img[c]
+    #    ch[black] = np.mean(ch[~black])
     return img
 
 
@@ -90,6 +125,24 @@ def load_image_uint(filename):
 
 def load_image(filename):
     return np.array(load_image_uint(filename), dtype=np.float32)
+
+
+def load_normalized(files):
+    # hack so we don't need to pass the arguments for mean and std
+    mean = get_mean()
+    X = load_image(files) - mean
+    X /= np.array(STD, dtype=np.float32)[np.newaxis, :, np.newaxis,
+                                         np.newaxis]
+    return X
+
+
+def normalize(batch):
+    mean = get_mean().mean(axis=(1, 2))
+    X = np.array(batch, np.float32) - np.array(mean, dtype=np.float32)[
+            np.newaxis, :, np.newaxis, np.newaxis]
+    X /= np.array(STD, dtype=np.float32)[np.newaxis, :, np.newaxis,
+                                         np.newaxis]
+    return X
 
 
 def load_patient(name, left=True, right=True, path=TRAIN_DIR):
@@ -122,33 +175,29 @@ def get_commit_sha():
     return output.strip().decode('utf-8')
 
 
-def balance_shuffle_indices(y, random_state=None, weight=0.1):
+def balance_shuffle_indices(y, random_state=None, weight=BALANCE_WEIGHT):
     y = np.asarray(y)
     counter = Counter(y)
     max_count = np.max(counter.values())
     indices = []
     for cls, count in counter.items():
         ratio = weight * max_count / count + (1 - weight)
-        idx = np.where(y == cls)[0].repeat(
-                np.ceil(ratio).astype(int))[:max_count]
-        indices.append(idx)
+        idx = np.tile(np.where(y == cls)[0], 
+                      np.ceil(ratio).astype(int))
+        np.random.shuffle(idx)
+        indices.append(idx[:max_count])
     return shuffle(np.hstack(indices), random_state=random_state)
 
 
-def split(*args, **kwargs):
-    return cross_validation.train_test_split(*args,
-                                             test_size=kwargs.get('test_size'),
-                                             random_state=RANDOM_STATE)
+def split_indices(y, test_size=0.1, random_state=RANDOM_STATE):
+    spl = cross_validation.StratifiedShuffleSplit(y, test_size=test_size, 
+                                                  random_state=random_state,
+                                                  n_iter=1)
+    return next(iter(spl))
 
-def timeit(f):
-    def wrapped_f(*args, **kwargs):
-        t_in = time.time()
-        ret_val = f(*args, **kwargs)
-        print("{}.{} took {:.5f} seconds".format(
-            getattr(f, 'im_class', '.').split('.', 1)[1],
-            f.__name__, time.time() - t_in))
-        return ret_val
-    return wrapped_f
+def split(X, y, test_size=0.1, random_state=RANDOM_STATE):
+    train, test = split_indices(y, test_size, random_state)
+    return X[train], X[test], y[train], y[test]
 
 
 def kappa(y_true, y_pred):
@@ -158,13 +207,25 @@ def kappa(y_true, y_pred):
         y_true = y_true.dot(range(y_true.shape[1]))
     if len(y_pred.shape) > 1 and y_pred.shape[1] > 1:
         y_pred = y_pred.dot(range(y_pred.shape[1]))
-    return quadratic_weighted_kappa(y_true, y_pred)
+    try:
+        return quadratic_weighted_kappa(y_true, y_pred)
+    except IndexError:
+        return np.nan
 
 
 def kappa_from_proba(w, p, y_true):
     return kappa(y_true, p.dot(w))
 
+
 def load_module(mod):
     return importlib.import_module(mod.replace('/', '.').strip('.py'))
 
+
+def get_mask(y):
+    counts = Counter(y)
+    mask = np.zeros(y.shape, dtype=np.float32)
+    for k, v in counts.items():
+        mask[y == k] = 1.0 / v
+    mask /= np.mean(mask)
+    return mask
 

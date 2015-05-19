@@ -87,7 +87,10 @@ def quadratic_weighted_kappa(rater_a, rater_b, min_rating=None, max_rating=None)
         for j in range(num_ratings):
             expected_count = (hist_rater_a[i] * hist_rater_b[j]
                               / num_scored_items)
-            d = pow(i - j, 2.0) / pow(num_ratings - 1, 2.0)
+            try:
+                d = pow(i - j, 2.0) / pow(num_ratings - 1, 2.0)
+            except ZeroDivisionError:
+                return np.nan
             numerator += d * conf_mat[i][j] / num_scored_items
             denominator += d * expected_count / num_scored_items
 

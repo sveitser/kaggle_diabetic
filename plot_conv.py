@@ -5,27 +5,28 @@ from nolearn.lasagne import visualize
 
 import util
 import nn
+import augment
 from definitions import *
 
 
 @click.command()
 @click.option('--n', default=0, type=int)
-@click.option('--cnf', default='config/best.py')
+@click.option('--cnf', default='config/micro.py')
 def plot(n, cnf):
 
-    cnf = util.load_module(cnf)
+    model = util.load_module(cnf).model
 
-    mean = util.get_mean()
-    files = util.get_image_files(TRAIN_DIR)
-    net = nn.create_net(mean, cnf.layers)
-    net.load_weights_from(WEIGHTS)
+    files = util.get_image_files(model.get('train_dir'))
+    net = nn.create_net(model)
+    net.load_params_from(WEIGHTS)
 
-    filename = files[n]
+    fname = files[n]
+    patient = util.get_names(files)[n]
 
-    patient = util.get_names([filename])[0]
-
-    x = (util.load_image(filename) - mean) / MAX_PIXEL_VALUE
+    x = augment.load(fname, **model.cnf)
     x = x[np.newaxis, ...]
+    print(x.shape)
+
     for name, layer in net.layers_.items():
         if 'conv' in name:
             print("plotting layer {}".format(name))
