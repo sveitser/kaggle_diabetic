@@ -67,8 +67,6 @@ def main(cnf):
     #f_train = np.hstack([f_train, test_files])
     #y_train = np.hstack([y_train, pseudo_labels])
 
-    mean = util.get_mean(files)
-
     net = create_net(model)
 
     try:

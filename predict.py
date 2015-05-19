@@ -8,7 +8,8 @@ from definitions import *
 
 @click.command()
 @click.option('--cnf', default='config/best.py')
-def predict(cnf):
+@click.option('--weights', default=WEIGHTS)
+def predict(cnf, weights):
 
     model = util.load_module(cnf).model
 
@@ -20,7 +21,8 @@ def predict(cnf):
     net = create_net(model)
 
     print("loading trained network weights")
-    net.load_params_from(model.get('weights_file', WEIGHTS))
+    #net.load_params_from(model.get('weights_file', WEIGHTS))
+    net.load_params_from(weights)
 
     preds = []
     for i in range(20):
