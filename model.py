@@ -8,6 +8,13 @@ import augment
 import util
 from definitions import *
 
+def mkdir(path):
+    try:
+        os.mkdir(path)
+    except OSError:
+        pass
+
+
 class Model(object):
     def __init__(self, layers, cnf=None):
         self.layers = layers
@@ -37,11 +44,24 @@ class Model(object):
         return self.cnf.get(k, default)
 
     @property
+    def weights_file(self):
+        mkdir('weights')
+        return "weights/weights_{}.pickle".format(self.cnf['name'])
+
+    @property
     def logfile(self):
-        try:
-            os.mkdir('log')
-        except OSError:
-            pass
+        mkdir('log')
         t = datetime.now().replace(microsecond=0).isoformat()
         return 'log/{}_{}.log'.format(self.get('name'), t)
+
+    def get_transform_fname(self, test=False):
+        fname = self.cnf['name'] + ('_test' if test else '') + '.npy'
+        return os.path.join(TRANSFORM_DIR, fname)
+
+    def save_transform(self, X, test=False):
+        mkdir(TRANSFORM_DIR)
+        np.save(open(self.get_transform_fname(test=test), 'wb'), X)
+
+    def load_transform(self, test=False):
+        return np.load(open(self.get_transform_fname(test=test)))
 

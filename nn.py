@@ -49,7 +49,7 @@ def loss(y_true, y_pred):
 #
 #   TODO make this take arguments
 #
-def create_net(model):
+def create_net(model, tta=False):
     net = Net(
         layers=model.layers,
         batch_iterator_train=SingleIterator(
@@ -58,7 +58,8 @@ def create_net(model):
         # TODO pass deterministic argument
         batch_iterator_test=SingleIterator(
             model, batch_size=model.get('batch_size_test', BATCH_SIZE), 
-            deterministic=False, resample=False),
+            deterministic=False if tta else True, 
+            resample=False),
         update=updates.nesterov_momentum,
         update_learning_rate=theano.shared(
             float32(model.get('learning_rate', INITIAL_LEARNING_RATE))),
@@ -85,6 +86,7 @@ def create_net(model):
         max_epochs=MAX_ITER,
         verbose=2,
     )
+    net.model_ = model
     return net
 
 
@@ -141,7 +143,7 @@ class ScoreMonitor(object):
             self.best_valid = current_valid
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
-            nn.save_params_to(WEIGHTS)
+            nn.save_params_to(nn.model_.weights_file)
         elif self.best_valid_epoch + self.patience < current_epoch:
             self._act(nn, train_history)
 
@@ -269,13 +271,11 @@ class Net(NeuralNet):
             # XXX breaking the Lasagne interface a little:
             obj.layers = layers
 
-
-        loss_params = self._get_params_for('loss')
-        loss_train = obj.get_loss(X_batch, y_batch, **loss_params)
-        loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True,
-                                 **loss_params)
+        loss_train = obj.get_loss(X_batch, y_batch)
+        loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
-        transform = list(layers.values())[-2].get_output(X_batch,
+        # TODO make this general somehow
+        transform = list(layers.values())[-7].get_output(X_batch,
                                                          deterministic=True)
         if not self.regression:
             predict = predict_proba.argmax(axis=1)
@@ -343,7 +343,21 @@ class Net(NeuralNet):
     def transform(self, X):
         features = []
         for Xb, yb in self.batch_iterator_test(X):
-            features.append(self.transform_iter_(Xb))
+            
+            # add dummy data for nervana kernels that need batch_size % 8 = 0
+            missing = (8 - len(Xb) % 8) % 8
+            if missing != 0:
+                tiles = np.ceil(float(missing) / len(Xb)).astype(int)
+                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:8]
+
+            transforms = self.transform_iter_(Xb)
+
+            if missing != 0:
+                transforms = transforms[-missing:]
+
+            features.append(transforms)
+
+
         return np.vstack(features)
     
     def predict_proba(self, X):

@@ -5,6 +5,7 @@ from lasagne import layers
 from model import Model
 
 cnf = {
+    'name': 'large',
     'w': 224,
     'h': 224,
     'train_dir': 'data/train_res',

@@ -11,6 +11,8 @@ from definitions import *
 @click.option('--weights', default=WEIGHTS)
 def predict(cnf, weights):
 
+    weights = str(weights)
+
     model = util.load_module(cnf).model
 
     submission_filename = util.get_submission_filename()

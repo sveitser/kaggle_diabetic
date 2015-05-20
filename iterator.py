@@ -11,6 +11,8 @@ import util
 
 from definitions import *
 
+N_PROC = 8
+
 class Consumer(multiprocessing.Process):
     
     def __init__(self, method, task_queue, result_queue):
@@ -61,7 +63,7 @@ class ProcessIterator(QueueIterator):
         self.results = multiprocessing.Queue()
         self.model = model
         self.consumers = [Consumer(model.load, self.tasks, self.results) 
-                          for _ in range(6)]
+                          for _ in range(N_PROC)]
         for consumer in self.consumers:
             consumer.start()
         super(ProcessIterator, self).__init__(*args, **kwargs)
@@ -115,8 +117,9 @@ class SingleIterator(ProcessIterator):
         tiles = np.ceil(float(missing) / len(Xb)).astype(int) + 1
         if missing != 0:
             Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:self.batch_size]
-            labels = np.tile(labels, [tiles] + [1] * (labels.ndim - 1))\
-                    [:self.batch_size]
+            if labels is not None:
+                labels = np.tile(labels, [tiles] + [1] * (labels.ndim - 1))\
+                        [:self.batch_size]
 
         if labels is not None:
             if not self.model.get('regression', REGRESSION):

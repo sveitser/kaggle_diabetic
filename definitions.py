@@ -15,6 +15,8 @@ TEST_LABELS = 'data/y_test.npy'
 ESTIMATOR_FILENAME = 'estimator.pickle'
 WEIGHTS = 'weights.pickle'
 CACHE_DIR = 'data/cache.dat'
+TRANSFORM_DIR = 'data/transform'
+
 
 # image dimensions
 C = 3
