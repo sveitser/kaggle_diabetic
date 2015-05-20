@@ -1,31 +1,29 @@
 # Kaggle Diabetic Retinopathy Detection
 
 ### Dependencies
-Install python dependencies.
+Install dependencies.
 ```
-pip install --upgrade -r requirements.txt
+bash install.sh
 ```
-Note that this includes a fork of the nolearn package that adds
-a ```transform``` method.
-
-It might also require NVIDIA CUDA to run.
-
 Extract train/test images to ```data/train``` and ```data/test``` respectively.
 
 ```bash
-python convert.py --directory data/train # resize training set images
-python convert.py --directory data/test  # resize test set images
-python train_nn.py --cnf config/best.py  # train a conv net for feature extraction.
-python fit.py --cnf config/best.py       # extract features and fit regression model
-python predict.py --cnf config/best.py   # make predictions on test set
+python NAME_OF_SCRIPT.py --help            # display command line parameters
+# examples
+python convert.py --directory data/train   # resize training set images
+python convert.py --directory data/test    # resize test set images
+python train_nn.py --cnf config/large.py   # train a conv net for feature extraction.
+python fit.py --cnf config/large.py        # extract features and fit regression model
+python predict.py --cnf config/large.py    # make predictions on test set
+python transform.py --cnf config/large.py  # feature extraction
+python boost.py                            # boost extracted features with xgboost
 ```
-
 The neural network code is mainly based on [this tutorial](http://danielnouri.org/notes/2014/12/17/using-convolutional-neural-nets-to-detect-facial-keypoints-tutorial/).
 
 ### Notes
 #### Regression vs. Classification
 By default treats the problem as regression problem (layers in
-```config/best.py```) with mean squared error or
+```config/large.py```) with mean squared error or
 as classification problem (layers in ```config/clf.py```) with softmax output
 layer and conversion to labels by weighted average over predicted
 probabilities. To use classification the ```REGRESSION``` variable in
@@ -51,11 +49,10 @@ images. Some images have artifacts that it might make sense to remove.
 - Replace zero pixels of each channel by channel mean upon loading image to 
   reduce the strength of the features which simply represent the shape of the 
   eye.
-- Random uniform rotations (currently disabled).
-- Random channel multiplication (function ```rgb_mix```, currently disabled).
+- Random uniform rotations.
 
 ### TODO (in arbitrary order)
-- Augmentation (random cropping, rotation, shearing, ...)
+- ~~Augmentation (random cropping, rotation, shearing, ...)~~
 - Tweak initialization of weights and learning rate.
 - ~~Make predictions on test set.~~
 - Can we somehow use the non-differentiable quadratic weighted kappa metric to

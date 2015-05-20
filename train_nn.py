@@ -36,8 +36,7 @@ def main(cnf):
 
     #sys.stdout = Log(model.logfile)
 
-    files = util.get_image_files(model.cnf.get('train_dir', TRAIN_DIR))
-    #files = files[:1000]
+    files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
 
     names = util.get_names(files)
     y = util.get_labels(names).astype(np.float32)
@@ -67,21 +66,19 @@ def main(cnf):
     #f_train = np.hstack([f_train, test_files])
     #y_train = np.hstack([y_train, pseudo_labels])
 
-    mean = util.get_mean(files)
-
     net = create_net(model)
 
     try:
-        net.load_params_from(WEIGHTS)
-        print("loaded weights from {}".format(WEIGHTS))
+        net.load_params_from(model.weights_file)
+        print("loaded weights from {}".format(model.weights_file))
     except IOError:
         print("couldn't load weights starting from scratch")
 
     print("fitting ...")
     net.fit(f_train, y_train)
 
-    print("saving final weights to final_{}".format(WEIGHTS))
-    net.save_params_to('final_{}'.format(WEIGHTS))
+    #print("saving final weights to final_{}".format(WEIGHTS))
+    #net.save_params_to('final_{}'.format(WEIGHTS))
 
     print("making predictions on validation set")
     y_pred = np.round(net.predict(f_test)).astype(int)

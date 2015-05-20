@@ -4,6 +4,7 @@ import numpy as np
 from scipy.ndimage.interpolation import rotate
 import skimage
 import skimage.transform
+from skimage.transform._warps_cy import _warp_fast
 
 import util
 
@@ -75,8 +76,10 @@ def fast_warp(img, tf, output_shape=(W, H), mode='constant', order=1):
     #return skimage.transform._warps_cy._warp_fast(img, m, output_shape=output_shape, mode=mode, order=order)
     t_img = np.zeros((img.shape[0],) + output_shape, img.dtype)
     for i in range(t_img.shape[0]):
-        t_img[i] = skimage.transform.warp(img[i], m, output_shape=output_shape, 
-                                          mode=mode, order=order)
+        #t_img[i] = skimage.transform.warp(img[i], m, output_shape=output_shape, 
+        #                                  mode=mode, order=order)
+        t_img[i] = _warp_fast(img[i], m, output_shape=output_shape, 
+                              mode=mode, order=order)
     return t_img
 
 

@@ -12,30 +12,42 @@ from definitions import *
 @click.command()
 @click.option('--cnf', default='config/best.py',
               help="Path or name of configuration module.")
-def fit(cnf):
+@click.option('--n_iter', default=20,
+              help="Iterations for test time averaging.")
+@click.option('--test', is_flag=True, default=False)
+@click.option('--train', is_flag=True, default=False)
+def transform(cnf, n_iter, test, train):
 
-    config = util.load_module(cnf)
+    run = {}
+    if train:
+        runs['train'] = model.get('train_dir', TRAIN_DIR)
+    if test:
+        runs['test'] = model.get('test_dir', TEST_DIR)
 
-    files = util.get_image_files(TRAIN_DIR)
-    names = util.get_names(files)
-    labels = util.get_labels(names)
+    model = util.load_module(cnf).model
 
-    f_train, f_test, y_train, y_test = util.split(files, labels)
+    net = nn.create_net(model, tta=True)
+    net.load_params_from(model.weights_file)
 
-    mean = util.get_mean(files)
+    for run, directory in runs.items():
 
-    net = nn.create_net(mean, config.layers)
-    net.load_params_from(WEIGHTS)
+        print("transforming {}".format(directory))
 
-    X_train = net.transform(f_train).reshape(10, *X_train.shape)
-    X_test = net.transform(f_test).reshape(10, *X_train.shape)
+        files = util.get_image_files(directory)
 
-    X_train /= 10.0
-    X_test /= 10.0
+        X_t = None
 
-    np.save(open(TRAIN_FEATURES, 'wb'), X_train)
-    np.save(open(TEST_FEATURES, 'wb'), X_test)
+        for i in range(n_iter):
 
+            print("transform iter {}".format(i))
+
+            if X_t is None:
+                X_t = net.transform(files)
+            else:
+                X_t += net.transform(files)
+
+        model.save_transform(X_t / n_iter, 
+                             test=True if run == 'test' else False)
 
 if __name__ == '__main__':
-    fit()
+    transform()

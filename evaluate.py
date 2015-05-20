@@ -13,7 +13,7 @@ from definitions import *
 @click.command()
 @click.option('--cnf', default='config/best.py',
               help="Path or name of configuration module.")
-@click.option('--weights', default='weights.pickle',
+@click.option('--weights', default=WEIGHTS,
               help="Path to weights file.", type=str)
 def fit(cnf, weights):
 
@@ -35,7 +35,7 @@ def fit(cnf, weights):
 
     #ua_train = net.predict(f_train).reshape(10, -1).mean(axis=0)
     preds = []
-    for i in range(20):
+    for i in range(1):
         print ("predicting {}".format(i))
         preds.append(net.predict(f_test).flatten())
 
@@ -47,5 +47,3 @@ def fit(cnf, weights):
 
 if __name__ == '__main__':
     fit()
-    import sys
-    sys.exit(0)

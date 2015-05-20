@@ -18,7 +18,7 @@ cnf = {
     'regression': True,
     #'n_classes': 3,
     'rotate': True,
-    'balance': 0.1,
+    'balance': 0.2,
 }
 
 layers = [

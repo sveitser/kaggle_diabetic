@@ -46,15 +46,20 @@ import augment
 def loss(y_true, y_pred):
     return abs(y_true - y_pred)
 
-def create_net(model):
+#
+#   TODO make this take arguments
+#
+def create_net(model, tta=False):
     net = Net(
         layers=model.layers,
         batch_iterator_train=SingleIterator(
             model, batch_size=model.get('batch_size_train', BATCH_SIZE),
             deterministic=False, resample=True),
+        # TODO pass deterministic argument
         batch_iterator_test=SingleIterator(
             model, batch_size=model.get('batch_size_test', BATCH_SIZE), 
-            deterministic=False, resample=False),
+            deterministic=False if tta else True, 
+            resample=False),
         update=updates.nesterov_momentum,
         update_learning_rate=theano.shared(
             float32(model.get('learning_rate', INITIAL_LEARNING_RATE))),
@@ -81,6 +86,7 @@ def create_net(model):
         max_epochs=MAX_ITER,
         verbose=2,
     )
+    net.model_ = model
     return net
 
 
@@ -137,7 +143,7 @@ class ScoreMonitor(object):
             self.best_valid = current_valid
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
-            nn.save_params_to(WEIGHTS)
+            nn.save_params_to(nn.model_.weights_file)
         elif self.best_valid_epoch + self.patience < current_epoch:
             self._act(nn, train_history)
 
@@ -265,13 +271,11 @@ class Net(NeuralNet):
             # XXX breaking the Lasagne interface a little:
             obj.layers = layers
 
-
-        loss_params = self._get_params_for('loss')
-        loss_train = obj.get_loss(X_batch, y_batch, **loss_params)
-        loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True,
-                                 **loss_params)
+        loss_train = obj.get_loss(X_batch, y_batch)
+        loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
-        transform = list(layers.values())[-2].get_output(X_batch,
+        # TODO make this general somehow
+        transform = list(layers.values())[-7].get_output(X_batch,
                                                          deterministic=True)
         if not self.regression:
             predict = predict_proba.argmax(axis=1)
@@ -339,7 +343,21 @@ class Net(NeuralNet):
     def transform(self, X):
         features = []
         for Xb, yb in self.batch_iterator_test(X):
-            features.append(self.transform_iter_(Xb))
+            
+            # add dummy data for nervana kernels that need batch_size % 8 = 0
+            missing = (8 - len(Xb) % 8) % 8
+            if missing != 0:
+                tiles = np.ceil(float(missing) / len(Xb)).astype(int)
+                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:8]
+
+            transforms = self.transform_iter_(Xb)
+
+            if missing != 0:
+                transforms = transforms[-missing:]
+
+            features.append(transforms)
+
+
         return np.vstack(features)
     
     def predict_proba(self, X):
@@ -370,6 +388,95 @@ class Net(NeuralNet):
                 y_pred = self.enc_.inverse_transform(y_pred)
             return y_pred
 
+    def train_loop(self, X, y):
+        X_train, X_valid, y_train, y_valid = self.train_test_split(
+            X, y, self.eval_size)
+
+        on_epoch_finished = self.on_epoch_finished
+        if not isinstance(on_epoch_finished, (list, tuple)):
+            on_epoch_finished = [on_epoch_finished]
+
+        on_training_started = self.on_training_started
+        if not isinstance(on_training_started, (list, tuple)):
+            on_training_started = [on_training_started]
+
+        on_training_finished = self.on_training_finished
+        if not isinstance(on_training_finished, (list, tuple)):
+            on_training_finished = [on_training_finished]
+
+        epoch = 0
+        best_valid_loss = (
+            min([row['valid_loss'] for row in self.train_history_]) if
+            self.train_history_ else np.inf
+            )
+        best_train_loss = (
+            min([row['train_loss'] for row in self.train_history_]) if
+            self.train_history_ else np.inf
+            )
+        for func in on_training_started:
+            func(self, self.train_history_)
+
+        num_epochs_past = len(self.train_history_)
+
+        while epoch < self.max_epochs:
+            epoch += 1
+
+            train_losses = []
+            valid_losses = []
+            valid_accuracies = []
+            #custom_score = []
+            y_pred, y_true = [], []
+
+            t0 = time()
+
+            for Xb, yb in self.batch_iterator_train(X_train, y_train):
+                batch_train_loss = self.train_iter_(Xb, yb)
+                train_losses.append(batch_train_loss)
+
+            for Xb, yb in self.batch_iterator_test(X_valid, y_valid):
+                batch_valid_loss, accuracy = self.eval_iter_(Xb, yb)
+                valid_losses.append(batch_valid_loss)
+                valid_accuracies.append(accuracy)
+                y_true.append(yb)
+                if self.custom_score:
+                    y_prob = self.predict_iter_(Xb)
+                    y_pred.append(y_prob)
+                    #custom_score.append(self.custom_score[1](yb, y_prob))
+
+            avg_train_loss = np.mean(train_losses)
+            avg_valid_loss = np.mean(valid_losses)
+            avg_valid_accuracy = np.mean(valid_accuracies)
+            if self.custom_score:
+                #avg_custom_score = np.mean(custom_score)
+                avg_custom_score = self.custom_score[1](np.vstack(y_true),
+                                                        np.vstack(y_pred))
+
+            if avg_train_loss < best_train_loss:
+                best_train_loss = avg_train_loss
+            if avg_valid_loss < best_valid_loss:
+                best_valid_loss = avg_valid_loss
+
+            info = {
+                'epoch': num_epochs_past + epoch,
+                'train_loss': avg_train_loss,
+                'train_loss_best': best_train_loss == avg_train_loss,
+                'valid_loss': avg_valid_loss,
+                'valid_loss_best': best_valid_loss == avg_valid_loss,
+                'valid_accuracy': avg_valid_accuracy,
+                'dur': time() - t0,
+                }
+            if self.custom_score:
+                info[self.custom_score[0]] = avg_custom_score
+            self.train_history_.append(info)
+
+            try:
+                for func in on_epoch_finished:
+                    func(self, self.train_history_)
+            except StopIteration:
+                break
+
+        for func in on_training_finished:
+            func(self, self.train_history_)
 
 #class MyMasked(MaskedObjective):
 #    def get_loss(self, input=None, target=None, mask=None,
