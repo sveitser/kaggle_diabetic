@@ -115,11 +115,10 @@ class SingleIterator(ProcessIterator):
         # add dummy data for nervana kernels that need batch_size % 8 = 0
         missing = self.batch_size - len(Xb)
         tiles = np.ceil(float(missing) / len(Xb)).astype(int) + 1
-        if missing != 0:
+        if missing != 0 and labels is not None:
             Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:self.batch_size]
-            if labels is not None:
-                labels = np.tile(labels, [tiles] + [1] * (labels.ndim - 1))\
-                        [:self.batch_size]
+            labels = np.tile(labels, [tiles] + [1] * (labels.ndim - 1))\
+                [:self.batch_size]
 
         if labels is not None:
             if not self.model.get('regression', REGRESSION):
