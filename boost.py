@@ -31,7 +31,7 @@ def fit(cnf, predict):
         print(tf)
         t = np.load(open(os.path.join(TRANSFORM_DIR, tf), 'rb'))
         print(t.shape)
-        if 'test' in tf and predict:
+        if 'test' in tf:
             transforms['test'].append(t)
         else:
             transforms['train'].append(t)
@@ -45,7 +45,12 @@ def fit(cnf, predict):
     else:
         X_train, X_test, y_train, y_test = util.split(X_train, labels)
 
-    est = XGBRegressor(n_estimators=500, silent=0)
+    est = XGBRegressor(
+        n_estimators=100, 
+        silent=0,
+        #subsample=0.5,
+        #colsample_bytree=0.5,
+    )
     est.fit(X_train, y_train)
 
     y_pred = np.round(est.predict(X_test)).astype(int)
