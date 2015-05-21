@@ -275,7 +275,7 @@ class Net(NeuralNet):
         loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
         # TODO make this general somehow
-        transform = list(layers.values())[-7].get_output(X_batch,
+        transform = list(layers.values())[-2].get_output(X_batch,
                                                          deterministic=True)
         if not self.regression:
             predict = predict_proba.argmax(axis=1)
@@ -343,20 +343,19 @@ class Net(NeuralNet):
     def transform(self, X):
         features = []
         for Xb, yb in self.batch_iterator_test(X):
-            
             # add dummy data for nervana kernels that need batch_size % 8 = 0
             missing = (8 - len(Xb) % 8) % 8
             if missing != 0:
-                tiles = np.ceil(float(missing) / len(Xb)).astype(int)
-                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:8]
+                tiles = np.ceil(float(missing) / len(Xb)).astype(int) + 1
+                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))\
+                        [:len(Xb) + missing]
 
             transforms = self.transform_iter_(Xb)
 
             if missing != 0:
-                transforms = transforms[-missing:]
-
+                transforms = transforms[:-missing]
+            
             features.append(transforms)
-
 
         return np.vstack(features)
     
@@ -367,13 +366,13 @@ class Net(NeuralNet):
             # add dummy data for nervana kernels that need batch_size % 8 = 0
             missing = (8 - len(Xb) % 8) % 8
             if missing != 0:
-                tiles = np.ceil(float(missing) / len(Xb)).astype(int)
+                tiles = np.ceil(float(missing) / len(Xb)).astype(int) + 1
                 Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:8]
 
             preds = self.predict_iter_(Xb)
 
             if missing != 0:
-                preds = preds[-missing:]
+                preds = preds[:-missing]
 
             probas.append(preds)
 

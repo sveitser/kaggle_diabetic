@@ -50,9 +50,9 @@ def fit(cnf, predict):
     est = XGBRegressor(
         n_estimators=100, 
         #silent=0,
-        subsample=0.1,
-        colsample_bytree=0.5,
-        max_depth=1,
+        #subsample=0.1,
+        #colsample_bytree=0.5,
+        #max_depth=1,
     )
     if not predict:
         grid = {
@@ -76,6 +76,7 @@ def fit(cnf, predict):
         est = gs.best_estimator_
 
     if predict:
+        est.fit(X_train, y_train)
         y_pred = np.round(est.predict(X_test)).astype(int)
         submission_filename = util.get_submission_filename()
         files = util.get_image_files(model.get('test_dir', TEST_DIR))
