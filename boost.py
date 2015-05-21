@@ -5,6 +5,7 @@ import click
 import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix
+from sklearn.grid_search import GridSearchCV
 from xgboost import XGBRegressor
 
 import util
@@ -47,13 +48,26 @@ def fit(cnf, predict):
 
     est = XGBRegressor(
         n_estimators=100, 
-        silent=0,
+        #silent=0,
         #subsample=0.5,
         #colsample_bytree=0.5,
     )
-    est.fit(X_train, y_train)
+    grid = {
+        'subsample': [0.1, 0.5, 0.8, 1.0],
+        'colsample_bytree': [0.1, 0.5, 0.8, 1.0],
+        'max_depth': [1, 2, 3, 4, 5, 6],
+        'n_estimators': [50, 100, 200],
+    }
+    gs = GridSearchCV(est, grid, verbose=2)
 
-    y_pred = np.round(est.predict(X_test)).astype(int)
+    gs.fit(X_train, y_train)
+    pd.set_option('display.height', 500)
+    pd.set_option('display.max_rows', 500)
+    df = util.grid_search_score_dataframe(gs)
+    print(df)
+    df.to_csv('grid_scores.csv')
+
+    y_pred = np.round(gs.predict(X_test)).astype(int)
 
     if predict:
         submission_filename = util.get_submission_filename()

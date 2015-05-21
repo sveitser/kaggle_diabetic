@@ -229,3 +229,10 @@ def get_mask(y):
     mask /= np.mean(mask)
     return mask
 
+def grid_search_score_dataframe(gs):
+    dicts = [s._asdict() for s in gs.grid_scores_]
+    df = pd.DataFrame([d['parameters'] for d in dicts])
+    scores = np.array([d['cv_validation_scores'] for d in dicts])
+    df.loc[:, 'mean'] = scores.mean(axis=1)
+    df.loc[:, 'std'] = scores.std(axis=1)
+    return df.iloc[np.argsort(df['mean'])]
