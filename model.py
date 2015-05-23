@@ -21,7 +21,7 @@ class Model(object):
         self.cnf = cnf if cnf is not None else {}
         self.setup(cnf)
         pprint.pprint(cnf)
-        pprint.pprint([(l.__name__, p) for l, p in layers])
+        #pprint.pprint([(l.__name__, p) for l, p in layers])
 
 
     def setup(self, cnf):

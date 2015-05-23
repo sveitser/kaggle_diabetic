@@ -18,13 +18,15 @@ from definitions import *
 @click.option('--train', is_flag=True, default=False)
 def transform(cnf, n_iter, test, train):
 
-    run = {}
+    model = util.load_module(cnf).model
+
+    runs = {}
     if train:
         runs['train'] = model.get('train_dir', TRAIN_DIR)
     if test:
         runs['test'] = model.get('test_dir', TEST_DIR)
 
-    model = util.load_module(cnf).model
+    model.cnf['batch_size_test'] = 64
 
     net = nn.create_net(model, tta=True)
     net.load_params_from(model.weights_file)

@@ -15,7 +15,7 @@ from lasagne import init
 from lasagne.updates import nesterov_momentum
 from lasagne import updates
 from lasagne.objectives import (MaskedObjective, Objective,
-                                categorical_crossentropy)
+                                categorical_crossentropy, mse)
 from lasagne.layers import get_output
 from nolearn.lasagne import NeuralNet, BatchIterator
 import theano
@@ -28,28 +28,12 @@ from iterator import SingleIterator
 
 import augment
 
-
-#def ordistic_loss(y_true, y_pred):
-#    zero = T.fvector('zero')
-#    T.maximum(T.abs_(y_true - y_pred) - 1, zero)
-
-#def mask_from_labels(target):
-#    # coeffs for polynomial  balanced weights for training set vs range(5)
-#    #w = [1, 5, 3, 8, 10]
-#    #w = np.array([ -0.16940318,   0.63021986,   2.52366008, -11.51726516,
-#    #              11.13624402,   0.27218907], dtype=np.float32)
-#    w = np.array([ -0.20611039,   0.76943727,   3.03613623, -14.40281366,
-#                   14.80335056,   1.        ], dtype=np.float32) / 10.0
-#    return w[-1] + w[-2] * target + w[-3] * target**2 + w[-4] * target**3 \
-#           + w[-5] * target**4
-
-def loss(y_true, y_pred):
-    return abs(y_true - y_pred)
+from ordinal_loss import ordinal_loss
 
 #
 #   TODO make this take arguments
 #
-def create_net(model, tta=False):
+def create_net(model, tta=False, ordinal=False):
     net = Net(
         layers=model.layers,
         batch_iterator_train=SingleIterator(
@@ -69,24 +53,26 @@ def create_net(model, tta=False):
             #               stop=0.0001),
             AdjustVariable('update_momentum', start=INITIAL_MOMENTUM,
                             stop=0.999),
-            EarlyStopping(loss=CUSTOM_SCORE_NAME, greater_is_better=True),
+            EarlyStopping(loss=CUSTOM_SCORE_NAME, greater_is_better=True,
+                          patience=model.get('patience', PATIENCE)),
             AdjustLearningRate('update_learning_rate',
                                 loss=CUSTOM_SCORE_NAME, 
                                 greater_is_better=True,
-                                patience=PATIENCE // 2),
+                                patience=model.get('patience', PATIENCE) // 2),
         ],
         custom_score=(CUSTOM_SCORE_NAME, util.kappa),
         #loss_mask=util.get_mask(y),
         objective=RegularizedObjective,
         #objective=MyMasked,
-        #objective_loss_function=loss,
+        objective_loss_function=ordinal_loss if model.get('ordinal', False) \
+                                             else mse,
         use_label_encoder=False,
         eval_size=0.1,
         regression=model.get('regression', REGRESSION),
         max_epochs=MAX_ITER,
         verbose=2,
     )
-    net.model_ = model
+    net._model = model
     return net
 
 
@@ -143,7 +129,7 @@ class ScoreMonitor(object):
             self.best_valid = current_valid
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
-            nn.save_params_to(nn.model_.weights_file)
+            nn.save_params_to(nn._model.weights_file)
         elif self.best_valid_epoch + self.patience < current_epoch:
             self._act(nn, train_history)
 
@@ -275,7 +261,7 @@ class Net(NeuralNet):
         loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
         # TODO make this general somehow
-        transform = list(layers.values())[-7].get_output(X_batch,
+        transform = list(layers.values())[-2].get_output(X_batch,
                                                          deterministic=True)
         if not self.regression:
             predict = predict_proba.argmax(axis=1)
@@ -343,20 +329,19 @@ class Net(NeuralNet):
     def transform(self, X):
         features = []
         for Xb, yb in self.batch_iterator_test(X):
-            
             # add dummy data for nervana kernels that need batch_size % 8 = 0
             missing = (8 - len(Xb) % 8) % 8
             if missing != 0:
-                tiles = np.ceil(float(missing) / len(Xb)).astype(int)
-                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:8]
+                tiles = np.ceil(float(missing) / len(Xb)).astype(int) + 1
+                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))\
+                        [:len(Xb) + missing]
 
             transforms = self.transform_iter_(Xb)
 
             if missing != 0:
-                transforms = transforms[-missing:]
-
+                transforms = transforms[:-missing]
+            
             features.append(transforms)
-
 
         return np.vstack(features)
     
@@ -367,13 +352,13 @@ class Net(NeuralNet):
             # add dummy data for nervana kernels that need batch_size % 8 = 0
             missing = (8 - len(Xb) % 8) % 8
             if missing != 0:
-                tiles = np.ceil(float(missing) / len(Xb)).astype(int)
+                tiles = np.ceil(float(missing) / len(Xb)).astype(int) + 1
                 Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:8]
 
             preds = self.predict_iter_(Xb)
 
             if missing != 0:
-                preds = preds[-missing:]
+                preds = preds[:-missing]
 
             probas.append(preds)
 
@@ -448,8 +433,15 @@ class Net(NeuralNet):
             avg_valid_accuracy = np.mean(valid_accuracies)
             if self.custom_score:
                 #avg_custom_score = np.mean(custom_score)
+
+                y_true = np.concatenate(y_true)
+                y_pred = np.concatenate(y_pred)
+
+                if self._model.get('ordinal'):
+                    y_pred = np.sum(y_pred, axis=1)
+
                 avg_custom_score = self.custom_score[1](np.vstack(y_true),
-                                                        np.vstack(y_pred))
+                                                        y_pred)
 
             if avg_train_loss < best_train_loss:
                 best_train_loss = avg_train_loss

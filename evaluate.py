@@ -13,12 +13,13 @@ from definitions import *
 @click.command()
 @click.option('--cnf', default='config/best.py',
               help="Path or name of configuration module.")
-@click.option('--weights', default=WEIGHTS,
+@click.option('--weights', default=None,
               help="Path to weights file.", type=str)
 def fit(cnf, weights):
 
     # load params doesn't work with unicode
-    weights = str(weights)
+    if weights is not None:
+        weights = str(weights)
 
     model = util.load_module(cnf).model
 
@@ -30,12 +31,15 @@ def fit(cnf, weights):
 
     f_train, f_test, y_train, y_test = util.split(files, labels)
 
-    net = nn.create_net(model)
-    net.load_params_from(weights)
+    net = nn.create_net(model, tta=True)
+    if weights is None:
+        net.load_params_from(model.weights_file)
+    else:
+        net.load_params_from(weights)
 
     #ua_train = net.predict(f_train).reshape(10, -1).mean(axis=0)
     preds = []
-    for i in range(1):
+    for i in range(20):
         print ("predicting {}".format(i))
         preds.append(net.predict(f_test).flatten())
 

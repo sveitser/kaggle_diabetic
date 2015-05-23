@@ -9,6 +9,7 @@ cnf = {
     'w': 224,
     'h': 224,
     'train_dir': 'data/train_res',
+    'test_dir': 'data/test_res',
     'batch_size': 128,
     'rotate': True,
     'learning_rate': 0.005,
