@@ -26,7 +26,7 @@ def transform(cnf, n_iter, test, train):
     if test:
         runs['test'] = model.get('test_dir', TEST_DIR)
 
-    model.cnf['batch_size_test'] = 8
+    model.cnf['batch_size_test'] = 64
 
     net = nn.create_net(model, tta=True)
     net.load_params_from(model.weights_file)
