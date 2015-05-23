@@ -109,16 +109,17 @@ def fit(cnf, predict, grid_search, per_patient):
         colsample_bytree=0.15,
         max_depth=3,
         learning_rate=0.1,
+        seed=42,
     )
 
-    #est = linear_model.Ridge()
+    est = linear_model.Ridge()
     #est = linear_model.Lasso()
 
     #est = Pipeline([
-    ##    #('scale', StandardScaler()),
+    #    #('scale', StandardScaler()),
     #    ('fit', LinearSVR(C=1, epsilon=0.1, verbose=3, max_iter=10000)),
-    ##    #('fit', SVR(verbose=3)),
-    ###    #('fit', linear_model.Lasso()),
+    #    #('fit', SVR(verbose=3)),
+    #    #('fit', linear_model.Lasso()),
     #])
 
 
@@ -130,8 +131,8 @@ def fit(cnf, predict, grid_search, per_patient):
             #'learning_rate': [0.05, 0.1, 0.15],
             #'n_estimators': [50, 100, 150],
             #'fit__epsilon': [0.1, 0.2, 0.3],
-            #'fit__C': [1.0, 2.0, 5.0, 10.0],
-            'alpha': [0.001, 0.01, 0.1, 0.2, 0.5, 1, 10],
+            'fit__C': [1.0, 2.0, 5.0, 10.0],
+            #'alpha': [0.001, 0.01, 0.1, 0.2, 0.5, 1, 10],
         }
         print("feature matrix {}".format(X_train.shape))
 
@@ -139,7 +140,7 @@ def fit(cnf, predict, grid_search, per_patient):
             kappa_scorer = make_scorer(util.kappa)
             y_train = labels
             gs = GridSearchCV(est, grid, verbose=3, cv=[(tr, te)], 
-                              scoring=kappa_scorer, n_jobs=-1)
+                              scoring=kappa_scorer, n_jobs=4)
             gs.fit(X_train, y_train)
             pd.set_option('display.height', 500)
             pd.set_option('display.max_rows', 500)
@@ -158,9 +159,6 @@ def fit(cnf, predict, grid_search, per_patient):
 
     if predict:
         est.fit(X_train, y_train)
-
-        if per_patient:
-            X_test = per_patient_reshape(X_test)
 
         y_pred = np.round(est.predict(X_test)).astype(int)
         y_pred = np.clip(y_pred, np.min(y_train), np.max(y_train))
