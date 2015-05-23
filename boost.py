@@ -11,10 +11,10 @@ from sklearn.grid_search import GridSearchCV
 from xgboost import XGBRegressor, XGBClassifier
 
 from sklearn import linear_model
-from sklearn.svm import LinearSVR, SVR
+from sklearn.ensemble import *
+from sklearn.svm import *
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-
 import util
 import nn
 
@@ -54,14 +54,20 @@ def get_sample_weights(y):
     return (2.0 + w) / 3.0
 
 
-def load_transform(directory=TRANSFORM_DIR, test=False):
-    tfs = sorted([f for f in os.listdir(directory) if f.endswith('npy')])
+def load_transform(directory=TRANSFORM_DIR, test=False, transform_file=None):
+
+    if transform_file is None:
+        tfs = sorted([os.path.join(directory, f) 
+                      for f in os.listdir(directory) if f.endswith('npy')])
+    else:
+        tfs = [transform_file]
+
     if test:
         tfs = [tf for tf in tfs if 'test' in tf]
     else:
         tfs = [tf for tf in tfs if 'test' not in tf]
 
-    data = [np.load(open(os.path.join(TRANSFORM_DIR, tf), 'rb')) for tf in tfs]
+    data = [np.load(open(tf, 'rb')) for tf in tfs]
 
     return np.hstack([t.reshape([t.shape[0], -1]) for t in data])
 
@@ -71,14 +77,15 @@ def load_transform(directory=TRANSFORM_DIR, test=False):
 @click.option('--predict', is_flag=True, default=False)
 @click.option('--grid_search', is_flag=True, default=False)
 @click.option('--per_patient', is_flag=True, default=False)
-def fit(cnf, predict, grid_search, per_patient):
+@click.option('--transform_file', default=None)
+def fit(cnf, predict, grid_search, per_patient, transform_file):
 
     model = util.load_module(cnf).model
     files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
     names = util.get_names(files)
     labels = util.get_labels(names)
 
-    X_train = load_transform()
+    X_train = load_transform(transform_file=transform_file)
 
 
     if per_patient:
@@ -112,14 +119,16 @@ def fit(cnf, predict, grid_search, per_patient):
         seed=42,
     )
 
-    est = linear_model.Ridge()
-    #est = linear_model.Lasso()
+    #est = LinearSVC(verbose=2, class_weight='auto')
+    #est = ExtraTreesRegressor(100, n_jobs=-1, verbose=2,
+    #                          max_leaf_nodes=100)
 
     #est = Pipeline([
-    #    #('scale', StandardScaler()),
-    #    ('fit', LinearSVR(C=1, epsilon=0.1, verbose=3, max_iter=10000)),
-    #    #('fit', SVR(verbose=3)),
-    #    #('fit', linear_model.Lasso()),
+    #    ('scale', MinMaxScaler()),
+    ##    #('fit', LinearSVR(C=1, epsilon=0.1, verbose=3, max_iter=10000)),
+    ##    ('fit', linear_model.Ridge()),
+    #     ('fit', linear_model.LogisticRegression(verbose=2,
+    #                                             class_weight='auto', C=0.1))
     #])
 
 
@@ -130,9 +139,9 @@ def fit(cnf, predict, grid_search, per_patient):
             #'max_depth': [3, 4, 5],
             #'learning_rate': [0.05, 0.1, 0.15],
             #'n_estimators': [50, 100, 150],
-            #'fit__epsilon': [0.1, 0.2, 0.3],
-            'fit__C': [1.0, 2.0, 5.0, 10.0],
-            #'alpha': [0.001, 0.01, 0.1, 0.2, 0.5, 1, 10],
+            #'fit__epsilon': [0.05, 0.1, 0.2, 0.25, 0.3],
+            #'fit__C': [1.0, 2.0, 5.0, 10.0, 100.0],
+            'fit__alpha': [0.001, 0.01, 0.1, 0.2, 0.5, 1.0, 10.0],
         }
         print("feature matrix {}".format(X_train.shape))
 
