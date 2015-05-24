@@ -1,5 +1,6 @@
 from __future__ import print_function
 from collections import Counter
+import cPickle as pickle
 from datetime import datetime
 import pprint
 from time import time
@@ -18,6 +19,7 @@ from lasagne.objectives import (MaskedObjective, Objective,
                                 categorical_crossentropy, mse)
 from lasagne.layers import get_output
 from nolearn.lasagne import NeuralNet, BatchIterator
+from nolearn.lasagne.handlers import SaveWeights
 import theano
 from theano import tensor as T
 
@@ -33,51 +35,76 @@ from ordinal_loss import ordinal_loss
 #
 #   TODO make this take arguments
 #
-def create_net(model, tta=False, ordinal=False):
-    net = Net(
-        layers=model.layers,
-        batch_iterator_train=SingleIterator(
+def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
+    args = {
+        'layers': model.layers,
+        'batch_iterator_train': SingleIterator(
             model, batch_size=model.get('batch_size_train', BATCH_SIZE),
             deterministic=False, resample=True),
         # TODO pass deterministic argument
-        batch_iterator_test=SingleIterator(
+        'batch_iterator_test': SingleIterator(
             model, batch_size=model.get('batch_size_test', BATCH_SIZE), 
             deterministic=False if tta else True, 
+            #deterministic=False,
             resample=False),
-        update=updates.nesterov_momentum,
-        update_learning_rate=theano.shared(
+        'update': updates.nesterov_momentum,
+        'update_learning_rate': theano.shared(
             float32(model.get('learning_rate', INITIAL_LEARNING_RATE))),
-        update_momentum=theano.shared(float32(INITIAL_MOMENTUM)),
-        on_epoch_finished=[
-            #AdjustVariable('update_learning_rate', start=INITIAL_LEARNING_RATE,
-            #               stop=0.0001),
-            AdjustVariable('update_momentum', start=INITIAL_MOMENTUM,
+        'update_momentum': theano.shared(float32(INITIAL_MOMENTUM)),
+        'on_epoch_finished': [
+            AdjustVariable('update_momentum', 
+                            start=model.get('momentum', INITIAL_MOMENTUM),
                             stop=0.999),
-            EarlyStopping(loss=CUSTOM_SCORE_NAME, greater_is_better=True,
-                          patience=model.get('patience', PATIENCE)),
-            AdjustLearningRate('update_learning_rate',
-                                loss=CUSTOM_SCORE_NAME, 
-                                greater_is_better=True,
-                                patience=model.get('patience', PATIENCE) // 2),
+            SaveWeights('weights/weights_{}'.format(model.get('name'))
+                        + '{epoch}_{timestamp}_{loss}.pickle',
+                        every_n_epochs=5)
         ],
-        custom_score=(CUSTOM_SCORE_NAME, util.kappa),
-        #loss_mask=util.get_mask(y),
-        objective=RegularizedObjective,
-        #objective=MyMasked,
-        objective_loss_function=ordinal_loss if model.get('ordinal', False) \
+        'objective': RegularizedObjective,
+        'objective_loss_function': ordinal_loss if model.get('ordinal', False) \
                                              else mse,
-        use_label_encoder=False,
-        eval_size=0.1,
-        regression=model.get('regression', REGRESSION),
-        max_epochs=MAX_ITER,
-        verbose=2,
-    )
+        'use_label_encoder': False,
+        'eval_size': 0.1,
+        'regression': model.get('regression', REGRESSION),
+        'max_epochs': MAX_ITER,
+        'verbose': 2,
+    }
+
+    patience = model.get('patience', PATIENCE)
+
+    if retrain_until is not None:
+        args['eval_size'] = 0.0
+        loss = 'train_loss'
+        save_after_epoch = False
+        args['on_epoch_finished'].append(RetrainUntil(threshold=retrain_until))
+    else:
+        loss = CUSTOM_SCORE_NAME
+        save_after_epoch = True
+        args['custom_score'] = (CUSTOM_SCORE_NAME, util.kappa)
+        args['on_epoch_finished'] += [
+            AdjustLearningRate('update_learning_rate', loss=loss, 
+                               greater_is_better=True, patience=patience // 2),
+            EarlyStopping(loss=CUSTOM_SCORE_NAME,  greater_is_better=True,
+                          patience=patience, save=save_after_epoch)
+        ]
+
+    args.update(kwargs)
+    net = Net(**args)
     net._model = model
+
     return net
 
 
 def float32(k):
     return np.cast['float32'](k)
+
+
+#def layer_std(layer, include_biases=False):
+#    if include_biases:
+#        all_params = lasagne.layers.get_all_params(layer)
+#    else:
+#        all_params = lasagne.layers.get_all_non_bias_params(layer)
+#
+#    return sum((T.std(p) / T.max(abs(p)) for p in all_params))
 
 
 class RegularizedObjective(Objective):
@@ -110,7 +137,7 @@ class AdjustVariable(object):
 
 class ScoreMonitor(object):
     def __init__(self, patience=PATIENCE, loss='valid_loss',
-                 greater_is_better=False):
+                 greater_is_better=False, save=True):
         self.patience = patience
         self.best_valid = np.inf
         self.best_valid_epoch = 0
@@ -141,11 +168,17 @@ class LossThreshold(object):
         self.loss = loss
 
     def __call__(self, nn, train_history):
-        current_loss = train_history[1][self.loss]
+        current_loss = train_history[-1][self.loss]
         if current_loss < self.threshold:
             print("Train loss threshold {} reached. Stopping."
                   "".format(self.threshold))
             raise StopIteration
+
+
+class RetrainUntil(LossThreshold):
+    def __call__(self, nn, train_history):
+        nn.save_params_to(nn._model.retrain_weights_file)
+        super(RetrainUntil, self).__call__(nn, train_history)
 
 
 class EarlyStopping(ScoreMonitor):
@@ -198,15 +231,60 @@ class QueueIterator(BatchIterator):
 
 class Net(NeuralNet):
 
+    def load_params_from(self, source):
+        self.initialize()
+
+        if isinstance(source, str):
+            with open(source, 'rb') as f:
+                source = pickle.load(f)
+
+        if isinstance(source, NeuralNet):
+            source = source.get_all_params_values()
+
+        success = "loaded parameters to layer '{}' (shape {})."
+        failure = ("Could not load parameters to layer '{}' because "
+                   "shapes did not match: {} vs {}.")
+        partially = ("Partially loaded parameters to layer '{}' because "
+                     "shapes did not match: {} vs {}.")
+
+        for key, values in source.items():
+            layer = self.layers_.get(key)
+            if layer is not None:
+                for p1, p2v in zip(layer.get_params(), values):
+                    shape1 = p1.get_value().shape
+                    shape2 = p2v.shape
+                    shape1s = 'x'.join(map(str, shape1))
+                    shape2s = 'x'.join(map(str, shape2))
+                    if shape1 == shape2:
+                        p1.set_value(p2v)
+                        if self.verbose:
+                            print(success.format(
+                                key, shape1s, shape2s))
+                    elif shape1[2:] == shape2[2:]:
+                        # only works if more filters are being added
+                        part = p1.get_value()
+                        if len(shape2) == 4:
+                            if shape1 > shape2:
+                                part[:shape2[0], :shape2[1]] = p2v
+                            else:
+                                part[:] = p2v[:shape1[0], :shape1[1]]
+                        elif len(shape2) == 3:
+                            part[:shape2[0]] = p2v
+                        else:
+                            continue
+                        p1.set_value(part)
+                        if self.verbose:
+                            print(partially.format(key, shape1s, shape2s))
+                    else:
+                        if self.verbose:
+                            print(failure.format(
+                                key, shape1s, shape2s))
+
+
     def train_test_split(self, X, y, eval_size):
         if eval_size:
-            kf = util.cross_validation.StratifiedShuffleSplit(
-                    y, test_size=eval_size, n_iter=1, 
-                    random_state=RANDOM_STATE)
-
-            train_indices, valid_indices = next(iter(kf))
-            X_train, y_train = X[train_indices], y[train_indices]
-            X_valid, y_valid = X[valid_indices], y[valid_indices]
+            X_train, X_valid, y_train, y_valid = util.split(X, y,
+                                                            test_size=eval_size)
         else:
             X_train, y_train = X, y
             X_valid, y_valid = X[len(X):], y[len(y):]
@@ -221,8 +299,6 @@ class Net(NeuralNet):
         if out is None:
             out = self._output_layer = self.initialize_layers()
         self._check_for_unused_kwargs()
-        if self.verbose:
-            self._print_layer_info(self.layers_.values())
 
         if self.X_tensor_type is None:
             types = {
@@ -260,9 +336,11 @@ class Net(NeuralNet):
         loss_train = obj.get_loss(X_batch, y_batch)
         loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
-        # TODO make this general somehow
-        transform = list(layers.values())[-2].get_output(X_batch,
-                                                         deterministic=True)
+
+        transform = [v for k, v in layers.items() 
+                     if 'rmspool' in k or 'maxpool' in k][-1].get_output(
+                             X_batch, deterministic=True)
+
         if not self.regression:
             predict = predict_proba.argmax(axis=1)
             accuracy = T.mean(T.eq(predict, y_batch))
@@ -327,6 +405,7 @@ class Net(NeuralNet):
         return super(Net, self).fit(X, y)
 
     def transform(self, X):
+
         features = []
         for Xb, yb in self.batch_iterator_test(X):
             # add dummy data for nervana kernels that need batch_size % 8 = 0
@@ -403,6 +482,8 @@ class Net(NeuralNet):
 
         num_epochs_past = len(self.train_history_)
 
+        class_losses = None
+
         while epoch < self.max_epochs:
             epoch += 1
 
@@ -418,6 +499,7 @@ class Net(NeuralNet):
                 batch_train_loss = self.train_iter_(Xb, yb)
                 train_losses.append(batch_train_loss)
 
+
             for Xb, yb in self.batch_iterator_test(X_valid, y_valid):
                 batch_valid_loss, accuracy = self.eval_iter_(Xb, yb)
                 valid_losses.append(batch_valid_loss)
@@ -431,17 +513,21 @@ class Net(NeuralNet):
             avg_train_loss = np.mean(train_losses)
             avg_valid_loss = np.mean(valid_losses)
             avg_valid_accuracy = np.mean(valid_accuracies)
-            if self.custom_score:
+            if self.custom_score and self.eval_size:
                 #avg_custom_score = np.mean(custom_score)
 
                 y_true = np.concatenate(y_true)
                 y_pred = np.concatenate(y_pred)
 
+                y_pred = np.clip(y_pred, np.min(y_true), np.max(y_true))
+
+                #from sklearn.metrics import confusion_matrix
+                #print(confusion_matrix(y_true, np.round(y_pred).astype(int)))
+
                 if self._model.get('ordinal'):
                     y_pred = np.sum(y_pred, axis=1)
 
-                avg_custom_score = self.custom_score[1](np.vstack(y_true),
-                                                        y_pred)
+                avg_custom_score = self.custom_score[1](y_true, y_pred)
 
             if avg_train_loss < best_train_loss:
                 best_train_loss = avg_train_loss
@@ -457,7 +543,7 @@ class Net(NeuralNet):
                 'valid_accuracy': avg_valid_accuracy,
                 'dur': time() - t0,
                 }
-            if self.custom_score:
+            if self.custom_score and self.eval_size:
                 info[self.custom_score[0]] = avg_custom_score
             self.train_history_.append(info)
 

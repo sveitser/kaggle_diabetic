@@ -42,9 +42,9 @@ default_augmentation_params = {
     'zoom_range': (1 / 1.1, 1.1),
     'rotation_range': (0, 360),
     'shear_range': (0, 0),
-    'translation_range': (-10, 10),
+    'translation_range': (-40, 40),
     'do_flip': True,
-    'allow_stretch': False,
+    'allow_stretch': True,
 }
 
 
@@ -213,7 +213,9 @@ def load(fname, *args, **kwargs):
     if kwargs.get('deterministic') is True:
         img = crop(img, w=w, h=h)
     elif kwargs.get('rotate') is True:
-        img = perturb(img / 255.0, target_shape=(w, h)) * 255.0
+        aug_params = kwargs.get('aug_params', default_augmentation_params)
+        img = perturb(img / 255.0, augmentation_params=aug_params,
+                      target_shape=(w, h)) * 255.0
     else:
         img = crop_random(img, w=w, h=h)
     #t2 = time.time()
@@ -224,5 +226,6 @@ def load(fname, *args, **kwargs):
     np.divide(img, np.array(kwargs['std'], dtype=np.float32)[:, np.newaxis, 
                                                              np.newaxis],
               out=img)
+    #np.divide(img, 128.0, out=img)
     #print('normalize took {}'.format(time.time() - t2))
     return img.copy()

@@ -5,18 +5,16 @@ from lasagne import layers
 from model import Model
 
 cnf = {
-    'name': '448_5_3_max_rms_fc',
-    'w': 448,
-    'h': 448,
-    'train_dir': 'data/train_medium',
-    'test_dir': 'data/test_medium',
-    'batch_size_train': 48,
-    'batch_size_test': 8,
+    'name': 'five_three_medium',
+    'w': 224,
+    'h': 224,
+    'train_dir': 'data/train_res',
+    'test_dir': 'data/test_res',
+    'batch_size_train': 96,
+    'batch_size_test': 16,
     'rotate': True,
-    'learning_rate': 0.005,
-    'balance': 0.2,
-    'patience': 100,
-    'regression': True,
+    'learning_rate': 0.003,
+    'balance': 0.1,
 }
 
 def cp(num_filters, *args, **kwargs):
@@ -27,29 +25,27 @@ def cp(num_filters, *args, **kwargs):
     args.update(kwargs)
     return conv_params(**args)
 
-
 layers = [
-    (InputLayer, {'shape': (None, C, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (cnf['batch_size_train'], C, cnf['w'], cnf['h'])}),
     (Conv2DLayer, conv_params(16, filter_size=(5, 5), stride=(2, 2))),
-    (Conv2DLayer, conv_params(16)),
-    (Conv2DLayer, conv_params(16)),
+    (Conv2DLayer, cp(24)),
+    #Conv2DLayer, cp(32)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(48, stride=(2, 2))),
+    (Conv2DLayer, cp(48)),
+    (Conv2DLayer, cp(48)),
     (Conv2DLayer, cp(48)),
     (MaxPool2DLayer, pool_params()),
-    (LocalResponseNormalization2DLayer, {}),
     (Conv2DLayer, cp(96)),
     (Conv2DLayer, cp(96)),
-    (Conv2DLayer, cp(128)),
-    (Conv2DLayer, cp(128)),
+    (Conv2DLayer, cp(96)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(256)),
-    (Conv2DLayer, cp(256)),
-    (Conv2DLayer, cp(256)),
+    (Conv2DLayer, cp(192)),
+    (Conv2DLayer, cp(192)),
+    #(Conv2DLayer, cp(192)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(512)),
-    (Conv2DLayer, cp(512)),
     #(Conv2DLayer, cp(384)),
+    #(Conv2DLayer, cp(384)),
+    (Conv2DLayer, cp(384)),
     (RMSPoolLayer, pool_params()),
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),
@@ -57,8 +53,8 @@ layers = [
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),
     (FeaturePoolLayer, {'pool_size': 2}),
-    (DenseLayer, {'num_units': N_TARGETS if cnf['regression'] else N_CLASSES,
-                  'nonlinearity': rectify if cnf['regression'] else softmax}),
+    (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
+                         'nonlinearity': rectify if REGRESSION else softmax}),
 ]
 
 model = Model(layers=layers, cnf=cnf)

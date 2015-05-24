@@ -31,7 +31,7 @@ def fit(cnf, weights):
 
     f_train, f_test, y_train, y_test = util.split(files, labels)
 
-    net = nn.create_net(model, tta=True)
+    net = nn.create_net(model, tta=False)
     if weights is None:
         net.load_params_from(model.weights_file)
     else:
@@ -39,7 +39,7 @@ def fit(cnf, weights):
 
     #ua_train = net.predict(f_train).reshape(10, -1).mean(axis=0)
     preds = []
-    for i in range(20):
+    for i in range(1):
         print ("predicting {}".format(i))
         preds.append(net.predict(f_test).flatten())
 

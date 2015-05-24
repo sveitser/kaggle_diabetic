@@ -30,27 +30,31 @@ class Log(object):
 @click.command()
 @click.option('--cnf', default='config/best.py',
               help='Path or name of configuration module.')
-def main(cnf):
+@click.option('--weights_from', default=None,
+              help='Path to initial weights file.')
+@click.option('--retrain_until', default=None, type=float,
+              help='Retrain until training loss reaches threshold.')
+def main(cnf, weights_from, retrain_until):
 
     model = util.load_module(cnf).model
 
-    #sys.stdout = Log(model.logfile)
+    if weights_from is None:
+        weights_from = model.weights_file
+    else:
+        weights_from = str(weights_from)
 
     files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
 
     names = util.get_names(files)
     y = util.get_labels(names).astype(np.float32)
 
-    #idx = (y <= 2)
-    #y = y[idx]
-    #files = files[idx]
-    #y[y > 1] = 1
-
     from collections import Counter
     print(Counter(y))
-    #y2 = util.get_labels(names, per_patient=True).astype(np.float32)
 
+    #if retrain_until is None:
     f_train, f_test, y_train, y_test = util.split(files, y)
+    #else:
+    #    f_train, f_test = files, y
 
     print(len(f_train))
     print(len(f_test))
@@ -66,19 +70,16 @@ def main(cnf):
     #f_train = np.hstack([f_train, test_files])
     #y_train = np.hstack([y_train, pseudo_labels])
 
-    net = create_net(model)
+    net = create_net(model, retrain_until=retrain_until)
 
     try:
-        net.load_params_from(model.weights_file)
-        print("loaded weights from {}".format(model.weights_file))
+        net.load_params_from(weights_from)
+        print("loaded weights from {}".format(weights_from))
     except IOError:
         print("couldn't load weights starting from scratch")
 
     print("fitting ...")
-    net.fit(f_train, y_train)
-
-    #print("saving final weights to final_{}".format(WEIGHTS))
-    #net.save_params_to('final_{}'.format(WEIGHTS))
+    net.fit(files, y)
 
     print("making predictions on validation set")
     y_pred = np.round(net.predict(f_test)).astype(int)

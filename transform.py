@@ -12,11 +12,13 @@ from definitions import *
 @click.command()
 @click.option('--cnf', default='config/best.py',
               help="Path or name of configuration module.")
-@click.option('--n_iter', default=20,
+@click.option('--n_iter', default=1,
               help="Iterations for test time averaging.")
 @click.option('--test', is_flag=True, default=False)
 @click.option('--train', is_flag=True, default=False)
-def transform(cnf, n_iter, test, train):
+@click.option('--weights_from', default=None,
+              help='Path to initial weights file.', type=str)
+def transform(cnf, n_iter, test, train, weights_from):
 
     model = util.load_module(cnf).model
 
@@ -26,10 +28,17 @@ def transform(cnf, n_iter, test, train):
     if test:
         runs['test'] = model.get('test_dir', TEST_DIR)
 
-    model.cnf['batch_size_test'] = 64
+    model.cnf['batch_size_test'] = 32
 
-    net = nn.create_net(model, tta=True)
-    net.load_params_from(model.weights_file)
+    net = nn.create_net(model, tta=True if n_iter > 1 else False)
+
+    if weights_from is None:
+        net.load_params_from(model.weights_file)
+        print("loaded weights from {}".format(model.weights_file))
+    else:
+        weights_from = str(weights_from)
+        net.load_params_from(weights_from)
+        print("loaded weights from {}".format(weights_from))
 
     for run, directory in runs.items():
 
@@ -48,8 +57,10 @@ def transform(cnf, n_iter, test, train):
             else:
                 X_t += net.transform(files)
 
-        model.save_transform(X_t / n_iter, 
-                             test=True if run == 'test' else False)
+            model.save_transform(X_t / (n_iter + 1), i + 1,
+                                 test=True if run == 'test' else False)
+
+            print('saved {} iterations'.format(i + 1))
 
 if __name__ == '__main__':
     transform()

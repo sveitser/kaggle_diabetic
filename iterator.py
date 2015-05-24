@@ -99,14 +99,30 @@ class SingleIterator(ProcessIterator):
 
     # this isn't needed if weights are set via masked objective
     def __call__(self, X, y=None):
-        # balance classes in dataset
+
+        #balance = max(self.model.get('balance', BALANCE_WEIGHT),
+        #              self.model.get('min_balance', 0.0))
+        #class_weights = (1.0 - balance) + balance \
+        #        * np.array(self.model.get('class_weights', CLASS_WEIGHTS))
+        #class_weights = self.model.get('balance_weights')
+        #self.model.cnf['balance_weights'] *= self.model.cnf['balance_ratio']
+        #class_weights = self.model.cnf['balance_weights'] \
+        #        + self.model.cnf['final_balance_weights']
+        alpha = self.model.cnf['balance_ratio'] ** self.count
+        class_weights = self.model.cnf['balance_weights'] * alpha \
+            + self.model.cnf['final_balance_weights'] * (1 - alpha)
+
+        self.count += 1
+
         if y is not None and self.resample:
             n = len(y)
-            indices = util.balance_shuffle_indices(
-                    y, random_state=None, 
-                    weight=self.model.get('balance', BALANCE_WEIGHT))
-            X = X[indices[:n]]
-            y = y[indices[:n]]
+            indices = util.balance_per_class_indices(y, weights=class_weights)
+            X = X[indices]
+            y = y[indices]
+        
+            #self.model.cnf['balance'] = balance \
+            #    * self.model.cnf.get('balance_ratio', 1)
+
         return super(SingleIterator, self).__call__(X, y)
 
     def transform(self, Xb, yb):

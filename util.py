@@ -23,6 +23,13 @@ from definitions import *
 
 MEMORY = Memory(cachedir=CACHE_DIR, verbose=4, compress=0)
 
+def lt(y):
+    return np.log(1.0 + y)
+
+
+def ilt(ly):
+    return np.exp(ly) - 1.0
+
 
 def timeit(f):
     def wrapped_f(*args, **kwargs):
@@ -189,11 +196,33 @@ def balance_shuffle_indices(y, random_state=None, weight=BALANCE_WEIGHT):
     return shuffle(np.hstack(indices), random_state=random_state)
 
 
+def balance_per_class_indices(y, weights=CLASS_WEIGHTS):
+    y = np.array(y)
+    weights = np.array(weights, dtype=float)
+    p = np.zeros(len(y))
+    for i, weight in enumerate(weights):
+        p[y==i] = weight
+    return np.random.choice(np.arange(len(y)), size=len(y), replace=True, 
+                            p=np.array(p) / p.sum())
+
+
 def split_indices(y, test_size=0.1, random_state=RANDOM_STATE):
-    spl = cross_validation.StratifiedShuffleSplit(y, test_size=test_size, 
+    files = get_image_files(TRAIN_DIR)
+    names = get_names(files)
+    labels = get_labels(names, per_patient=True)
+
+    left = np.array(['left' in n for n in names])
+    right = np.array(['right' in n for n in names])
+
+    spl = cross_validation.StratifiedShuffleSplit(labels[:, 0], 
+                                                  test_size=test_size, 
                                                   random_state=random_state,
                                                   n_iter=1)
-    return next(iter(spl))
+    tr, te = next(iter(spl))
+    tr = np.hstack([tr * 2, tr * 2 + 1])
+    te = np.hstack([te * 2, te * 2 + 1])
+    return tr, te
+    
 
 def split(X, y, test_size=0.1, random_state=RANDOM_STATE):
     train, test = split_indices(y, test_size, random_state)
@@ -218,7 +247,7 @@ def kappa_from_proba(w, p, y_true):
 
 
 def load_module(mod):
-    return importlib.import_module(mod.replace('/', '.').strip('.py'))
+    return importlib.import_module(mod.replace('/', '.').split('.py')[0])
 
 
 def get_mask(y):

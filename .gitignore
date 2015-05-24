@@ -66,3 +66,5 @@ target/
 *.dat
 *.out
 *.npy
+*.txt
+*.csv

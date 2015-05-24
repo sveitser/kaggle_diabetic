@@ -1,27 +1,22 @@
 from layers import *
 
-from lasagne import layers 
-
 from model import Model
 
 cnf = {
-    'name': 'large',
-    'w': 224,
-    'h': 224,
-    'train_dir': 'data/train_res',
-    'test_dir': 'data/test_res',
-    'batch_size': 128,
-    'rotate': True,
+    'name': 'micro',
+    'w': 448,
+    'h': 448,
+    'train_dir': 'data/train_medium',
+    'batch_size': 32,
+    #'mean': [112.26],
+    #'std': [26.63],
+    'mean': [ 108.73683167, 75.54026794,  53.80962753],
+    'std': [ 70.44262987, 51.35997035, 42.51656026],
     'learning_rate': 0.005,
+    'regression': True,
+    #'n_classes': 3,
+    'rotate': True,
     'balance': 0.1,
-    'aug_params': {
-        'zoom_range': (1 / 1.1, 1.1),
-        'rotation_range': (0, 360),
-        'shear_range': (0, 0),
-        'translation_range': (-20, 20),
-        'do_flip': True,
-        'allow_stretch': True,
-    }
 }
 
 layers = [
@@ -41,7 +36,7 @@ layers = [
     (Conv2DLayer, conv_params(192)),
     (Conv2DLayer, conv_params(192)),
     (Conv2DLayer, conv_params(192)),
-    (RMSPoolLayer, pool_params(stride=(1, 1))),
+    (RMSPoolLayer, pool_params(stride=(2, 2))),
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),
     (FeaturePoolLayer, {'pool_size': 2}),
