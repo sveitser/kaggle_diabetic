@@ -240,8 +240,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     if not predict:
         grid = {
             #'subsample': [0.5, 1.0],
-            'colsample_bytree': [0.005, 0.01, 0.02, 0.05, 0.1,
-                                 0.2],
+            'colsample_bytree': [0.1, 0.2, 0.5],
             #'max_depth': [2, 3, 4],
             #'learning_rate': [0.08, 0.1, 0.12],
             #'n_estimators': [80, 100, 120],
@@ -273,7 +272,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
             for i in range(n_iter):
                 print('iter {}'.format(i))
                 print('fitting split training set')
-                #est = get_xgb(seed=i*10)
+                est = get_xgb(seed=i*10)
                 est.fit(X_train[tr], labels[tr])
                 y_pred = est.predict(X_train[te])
                 y_preds.append(y_pred)
@@ -286,8 +285,6 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
                 print(confusion_matrix(labels[te], y_pred))
 
     if predict:
-
-        print("fitting validation set for thresholds")
 
         y_preds = []
         for i in range(n_iter):
