@@ -200,6 +200,16 @@ def perturb(img, augmentation_params=default_augmentation_params,
                      output_shape=target_shape, 
                      mode='constant').astype('float32')
 
+
+# for test-time augmentation
+def perturb_fixed(img, tform_augment, target_shape=(50, 50)):
+    shape = img.shape[1:]
+    tform_centering = build_centering_transform(shape, target_shape)
+    tform_center, tform_uncenter = build_center_uncenter_transforms(shape)
+    tform_augment = tform_uncenter + tform_augment + tform_center # shift to center, augment, shift back (for the rotation/shearing)
+    return fast_warp(img, tform_centering + tform_augment, output_shape=target_shape, mode='constant').astype('float32')
+
+
 def load_perturbed(fname):
     img = util.load_image_uint_one(fname).astype(np.float32) / 255.0
     return perturb(img) * 255
@@ -214,8 +224,12 @@ def load(fname, *args, **kwargs):
         img = crop(img, w=w, h=h)
     elif kwargs.get('rotate') is True:
         aug_params = kwargs.get('aug_params', default_augmentation_params)
-        img = perturb(img / 255.0, augmentation_params=aug_params,
-                      target_shape=(w, h)) * 255.0
+        if kwargs.get('transform') is None:
+            img = perturb(img / 255.0, augmentation_params=aug_params,
+                          target_shape=(w, h)) * 255.0
+        else:
+            img = perturb_fixed(img / 255.0, tform_augment=kwargs['transform'], 
+                            target_shape=(w, h)).astype('float32') * 255.0
     else:
         img = crop_random(img, w=w, h=h)
     #t2 = time.time()

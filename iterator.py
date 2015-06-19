@@ -4,7 +4,7 @@ import Queue
 import time
 
 import numpy as np
-from nolearn.lasagne import BatchIterator
+#from nolearn.lasagne import BatchIterator
 
 import augment
 import util
@@ -32,6 +32,37 @@ class Consumer(multiprocessing.Process):
 
         except KeyboardInterrupt:
             return
+
+class BatchIterator(object):
+    def __init__(self, batch_size):
+        self.batch_size = batch_size
+
+    def __call__(self, X, y=None, transform=None):
+        self.tf = transform
+        self.X, self.y = X, y
+        return self
+
+    def __iter__(self):
+        n_samples = self.X.shape[0]
+        bs = self.batch_size
+        for i in range((n_samples + bs - 1) // bs):
+            sl = slice(i * bs, (i + 1) * bs)
+            Xb = self.X[sl]
+            if self.y is not None:
+                yb = self.y[sl]
+            else:
+                yb = None
+            yield self.transform(Xb, yb, transform=self.tf)
+
+    def transform(self, Xb, yb):
+        return Xb, yb
+
+    def __getstate__(self):
+        state = dict(self.__dict__)
+        for attr in ('X', 'y',):
+            if attr in state:
+                del state[attr]
+        return state
 
 
 class QueueIterator(BatchIterator):
@@ -71,11 +102,12 @@ class ProcessIterator(QueueIterator):
     def _get_metata(self):
         raise NotImplementedError
 
-    def transform(self, Xb, yb):
+    def transform(self, Xb, yb, transform=None):
         fnames, labels = super(ProcessIterator, self).transform(Xb, yb)
         for i, fname in enumerate(fnames):
 
             kwargs = self.model.cnf.copy()
+            kwargs['transform'] = transform
             kwargs.update(self._get_metata())
 
             self.tasks.put((augment.load, i, fname, kwargs))
@@ -98,7 +130,7 @@ class SingleIterator(ProcessIterator):
         return {'deterministic': self.deterministic}
 
     # this isn't needed if weights are set via masked objective
-    def __call__(self, X, y=None):
+    def __call__(self, X, y=None, transform=None):
 
         #balance = max(self.model.get('balance', BALANCE_WEIGHT),
         #              self.model.get('min_balance', 0.0))
@@ -123,10 +155,11 @@ class SingleIterator(ProcessIterator):
             #self.model.cnf['balance'] = balance \
             #    * self.model.cnf.get('balance_ratio', 1)
 
-        return super(SingleIterator, self).__call__(X, y)
+        return super(SingleIterator, self).__call__(X, y, transform=transform)
 
-    def transform(self, Xb, yb):
-        Xb, labels = super(SingleIterator, self).transform(Xb, yb)
+    def transform(self, Xb, yb, transform=None):
+        Xb, labels = super(SingleIterator, self).transform(Xb, yb,
+                                                           transform=transform)
 
         # add dummy data for nervana kernels that need batch_size % 8 = 0
         missing = self.batch_size - len(Xb)

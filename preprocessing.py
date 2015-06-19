@@ -103,6 +103,6 @@ class preprocessing():
 
 
 # Instantiate class object and run it.
-path_original_images = '/media/stephan/12C3-91C8/Kaggle.com/diabetic_retinopathy/kaggle diabetic_/train_original/'
+path_original_images = '/nas/kaggle/train/'
 preprocessing_class=preprocessing(path_original_images)
 preprocessing_class.main()

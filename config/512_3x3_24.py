@@ -21,7 +21,7 @@ cnf = {
     'rotate': True,
     'balance': 1.0,
     'balance_weights':  np.array([1, 10.5, 4.8, 29.5, 36.4], dtype=float),
-    'final_balance_weights':  np.array([1, 2.5, 2.0, 4.0, 5.5], dtype=float),
+    'final_balance_weights':  np.array([1, 2.0, 2.0, 3.0, 3.0], dtype=float),
     'balance_ratio': 0.6,
     'aug_params': {
         'zoom_range': (1 / 1.1, 1.1),

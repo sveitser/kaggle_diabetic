@@ -56,7 +56,7 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
                             start=model.get('momentum', INITIAL_MOMENTUM),
                             stop=0.999),
             SaveWeights('weights/weights_{}'.format(model.get('name'))
-                        + '{epoch}_{timestamp}_{loss}.pickle',
+                        + '_{epoch}_{timestamp}_{loss}.pickle',
                         every_n_epochs=5)
         ],
         'objective': RegularizedObjective,
@@ -404,10 +404,10 @@ class Net(NeuralNet):
         self.objective.mask = util.get_mask(y)
         return super(Net, self).fit(X, y)
 
-    def transform(self, X):
+    def transform(self, X, transform=None):
 
         features = []
-        for Xb, yb in self.batch_iterator_test(X):
+        for Xb, yb in self.batch_iterator_test(X, transform=transform):
             # add dummy data for nervana kernels that need batch_size % 8 = 0
             missing = (8 - len(Xb) % 8) % 8
             if missing != 0:

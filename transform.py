@@ -8,6 +8,7 @@ import util
 import nn
 
 from definitions import *
+from tta import build_quasirandom_transforms
 
 @click.command()
 @click.option('--cnf', default='config/best.py',
@@ -40,7 +41,9 @@ def transform(cnf, n_iter, test, train, weights_from):
         net.load_params_from(weights_from)
         print("loaded weights from {}".format(weights_from))
 
-    for run, directory in runs.items():
+    tfs = build_quasirandom_transforms(n_iter, **model.cnf['aug_params'])
+
+    for run, directory in sorted(runs.items(), reverse=True):
 
         print("transforming {}".format(directory))
 
@@ -48,19 +51,19 @@ def transform(cnf, n_iter, test, train, weights_from):
 
         X_t = None
 
-        for i in range(n_iter):
+        for i, tf in enumerate(tfs):
 
-            print("transform iter {}".format(i))
+            print("{} transform iter {}".format(run, i + 1))
 
             if X_t is None:
-                X_t = net.transform(files)
+                X_t = net.transform(files, transform=tf)
             else:
-                X_t += net.transform(files)
+                X_t += net.transform(files, transform=tf)
 
-            model.save_transform(X_t / (n_iter + 1), i + 1,
-                                 test=True if run == 'test' else False)
-
-            print('saved {} iterations'.format(i + 1))
+            if i % 5 == 4:
+                model.save_transform(X_t / (n_iter + 1), i + 1,
+                                     test=True if run == 'test' else False)
+                print('saved {} iterations'.format(i + 1))
 
 if __name__ == '__main__':
     transform()
