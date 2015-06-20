@@ -41,16 +41,22 @@ def get_xgb(**kwargs):
     args = {
         'subsample': 0.5,
         #'colsample_bytree': 0.005,
-        'colsample_bytree': 0.1,
-        #'colsample_bytree': 0.001,
+        #'colsample_bytree': 0.1,
+        'colsample_bytree': 0.05,
         'learning_rate': 0.1,
-        'seed': 42,
+        'seed': 1,
         'n_estimators': 100,
+        #'silent': False,
     }
     args.update(kwargs)
     import pprint
     pprint.pprint(args)
     return XGBRegressor(**args)
+
+def get_ridge(**kwargs):
+    return linear_model.Ridge(**kwargs)
+
+get_estimator = get_xgb
 
 def per_patient_split(labels):
     a, b = util.split_indices(labels)
@@ -228,7 +234,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     #labels = np.tile(labels, 3)
     #print(tr, te)
 
-    est = get_xgb()
+    est = get_estimator()
     #est = linear_model.Ridge()
     #est = LinearSVR(verbose=2)
     #est = OrdinalClassifier(XGBClassifier(silent=0, colsample_bytree=0.1,
@@ -240,16 +246,17 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     if not predict:
         grid = {
             #'subsample': [0.5, 1.0],
-            'colsample_bytree': [0.1, 0.2, 0.5],
+            'colsample_bytree': [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2],
+            #'colsample_bytree': [0.002],
             #'max_depth': [2, 3, 4],
-            #'learning_rate': [0.08, 0.1, 0.12],
-            #'n_estimators': [80, 100, 120],
-            'seed': np.arange(n_iter) * 9,
+            #'learning_rate': [0.05],
+            #'n_estimators': [500],
+            'seed': np.arange(n_iter) * 10 + 1,
             #'n_estimators': [50, 100, 200],
             #'epsilon': [0.1, 0.2, 0.25, 0.3],
             #'C': [5.0, 10, 20],
             #'alpha': [0.002, 0.005, 0.01, 0.02, 0.05],
-            #'alpha': [0.1, 0.2, 0.5, 1.0, 2.0],
+            #'alpha': [0.1, 0.2, 0.5, 1.0, 2.0, 5, 10],
             #'alpha': [1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3],
             #'fit__C': [0.01, 0.1, 1.0, 10, 100],
         }
@@ -272,7 +279,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
             for i in range(n_iter):
                 print('iter {}'.format(i))
                 print('fitting split training set')
-                est = get_xgb(seed=i*10)
+                est = get_estimator(seed=i * 10 + 1)
                 est.fit(X_train[tr], labels[tr])
                 y_pred = est.predict(X_train[te])
                 y_preds.append(y_pred)
@@ -289,7 +296,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         y_preds = []
         for i in range(n_iter):
             print('fitting full training set')
-            est = get_xgb(seed=i * 10)
+            est = get_estimator(seed=i * 10 + 1)
             est.fit(X_train, labels)
             y_pred = est.predict(X_test)
             y_preds.append(y_pred)
