@@ -91,12 +91,12 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     # 
     if not predict:
         grid = {
-            #'subsample': [0.5, 1.0],
-            'colsample_bytree': [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2],
+            'subsample': [0.2, 0.5, 0.8],
+            'colsample_bytree': [0.005, 0.01, 0.02],
             #'colsample_bytree': [0.002],
             #'max_depth': [2, 3, 4],
-            #'learning_rate': [0.05],
-            #'n_estimators': [500],
+            'learning_rate': [0.08, 0.1],
+            'n_estimators': [100, 120],
             #'seed': np.arange(n_iter) * 9,
             #'n_estimators': [50, 100, 200],
             #'epsilon': [0.1, 0.2, 0.25, 0.3],
