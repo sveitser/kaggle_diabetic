@@ -2,6 +2,7 @@ from __future__ import division, print_function
 from collections import Counter
 from datetime import datetime
 import os
+import pprint
 
 import click
 import numpy as np
@@ -42,15 +43,14 @@ def get_xgb(**kwargs):
         'subsample': 0.5,
         #'colsample_bytree': 0.005,
         #'colsample_bytree': 0.1,
-        'colsample_bytree': 0.005,
-        'learning_rate': 0.05,
+        'colsample_bytree': 0.0002,
+        'learning_rate': 0.1,
         'seed': 1,
         'n_estimators': 100,
         'max_depth': 5,
         #'silent': False,
     }
     args.update(kwargs)
-    import pprint
     pprint.pprint(args)
     return XGBRegressor(**args)
 
@@ -110,6 +110,9 @@ def load_transform(directory=FEATURE_DIR, test=False, transform_file=None):
         tfs = [tf for tf in tfs if 'test' in tf]
     else:
         tfs = [tf for tf in tfs if 'test' not in tf]
+
+    print('loading transform files')
+    pprint.pprint(tfs)
 
     data = [np.load(open(tf, 'rb')) for tf in tfs]
 
@@ -247,10 +250,10 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     if not predict:
         grid = {
             #'subsample': [0.2, 0.5, 0.8],
-            'colsample_bytree': [0.005, 0.01, 0.02, 0.05],
+            'colsample_bytree': [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05],
             #'colsample_bytree': [0.002],
-            'max_depth': [2, 3, 5],
-            'learning_rate': [0.05, 0.08, 0.1],
+            'max_depth': [3],
+            'learning_rate': [0.1],
             'n_estimators': [100],
             'seed': np.arange(n_iter) * 10 + 1,
             #'epsilon': [0.1, 0.2, 0.25, 0.3],

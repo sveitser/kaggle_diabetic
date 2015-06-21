@@ -2,6 +2,7 @@ from __future__ import division, print_function
 from collections import Counter
 from datetime import datetime
 import os
+import pprint
 
 import click
 import numpy as np
@@ -70,17 +71,22 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     param = {
         'silent': 1,
         'eta': 0.1,
-        'objective':'rank:pairwise',
-        'booster':'gbtree',
-        'colsample_bytree': 0.001,
-        #'alpha': 0.01,
-        #'lambda': 10.0,
-        'max_depth': 10,
+        'base_score': 0.0,
+        #'objective':'rank:pairwise',
+        'objective':'reg:linear',
+        'booster':'gblinear',
+        'colsample_bytree': 0.0005,
+        'gamma': 0.01,
+        'max_delta_step': 1,
+        'alpha': 0.01,
+        'lambda': 10.0,
+        'max_depth': 3,
         'subsample': 0.5,
     }
+    pprint.pprint(param)
 
     watchlist  = [(dtest,'eval'), (dtrain,'train')]
-    num_round = 100
+    num_round = 200
     bst = xgb.train(param, dtrain, num_round, watchlist, feval=evalkappa)
     preds = bst.predict(dtest)
     labels = dtest.get_label()
