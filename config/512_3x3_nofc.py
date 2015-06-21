@@ -14,7 +14,7 @@ cnf = {
     #'std': [26.63],
     'mean': [ 108.73683167, 75.54026794,  53.80962753],
     'std': [ 70.44262987, 51.35997035, 42.51656026],
-    'learning_rate': 0.001,
+    'learning_rate': 0.0001,
     'patience': 40,
     'regression': True,
     #'n_classes': 3,

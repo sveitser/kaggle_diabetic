@@ -494,9 +494,12 @@ class Net(NeuralNet):
             y_pred, y_true = [], []
 
             t0 = time()
+            toc = time()
 
             for Xb, yb in self.batch_iterator_train(X_train, y_train):
                 batch_train_loss = self.train_iter_(Xb, yb)
+                #print('iter took {:.4f} s'.format(time() - toc))
+                toc = time()
                 train_losses.append(batch_train_loss)
 
 

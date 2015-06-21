@@ -17,6 +17,7 @@ from lightning.ranking import PRank, KernelPRank
 from sklearn import linear_model
 from sklearn.ensemble import *
 from sklearn.svm import *
+from sklearn.lda import LDA
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -43,11 +44,11 @@ def get_xgb(**kwargs):
         'subsample': 0.5,
         #'colsample_bytree': 0.005,
         #'colsample_bytree': 0.1,
-        'colsample_bytree': 0.0002,
+        'colsample_bytree': 0.001,
         'learning_rate': 0.1,
         'seed': 1,
         'n_estimators': 100,
-        'max_depth': 5,
+        'max_depth': 3,
         #'silent': False,
     }
     args.update(kwargs)
@@ -56,6 +57,9 @@ def get_xgb(**kwargs):
 
 def get_ridge(**kwargs):
     return linear_model.Ridge(**kwargs)
+
+def get_lda(**kwarg):
+    return make_pipeline(LDA(n_components=100), get_xgb())
 
 get_estimator = get_xgb
 
@@ -115,8 +119,9 @@ def load_transform(directory=FEATURE_DIR, test=False, transform_file=None):
     pprint.pprint(tfs)
 
     data = [np.load(open(tf, 'rb')) for tf in tfs]
-
-    return np.hstack([t.reshape([t.shape[0], -1]) for t in data])
+    data = [t.reshape([t.shape[0], -1]) for t in data]
+    #data = [PCA(n_components=100).fit_transform(x) for x in data]
+    return np.hstack(data)
 
     #t0 = data[0]
     #t1 = 2*data[1] - data[0]
@@ -250,8 +255,10 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     if not predict:
         grid = {
             #'subsample': [0.2, 0.5, 0.8],
-            'colsample_bytree': [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05],
-            #'colsample_bytree': [0.002],
+            #'colsample_bytree': [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05],
+            'colsample_bytree': [#0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1,
+                                 0.01, 0.02, 0.05, 0.1,
+                                 0.5, 1.0],
             'max_depth': [3],
             'learning_rate': [0.1],
             'n_estimators': [100],

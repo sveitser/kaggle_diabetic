@@ -71,17 +71,17 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     param = {
         'silent': 1,
         'eta': 0.1,
-        'base_score': 0.0,
+        'base_score': 0.5,
         #'objective':'rank:pairwise',
         'objective':'reg:linear',
-        'booster':'gblinear',
-        'colsample_bytree': 0.0005,
-        'gamma': 0.01,
-        'max_delta_step': 1,
-        'alpha': 0.01,
-        'lambda': 10.0,
+        'booster':'gbtree',
+        'colsample_bytree': 0.001,
+        #'gamma': 0.5,
+        #'max_delta_step': 1,
+        #'alpha': 0.01,
+        #'lambda': 10.0,
         'max_depth': 3,
-        'subsample': 0.5,
+        'subsample': 0.8,
     }
     pprint.pprint(param)
 
