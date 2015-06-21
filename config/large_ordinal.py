@@ -5,7 +5,7 @@ from lasagne import layers
 from model import Model
 
 cnf = {
-    'name': 'large',
+    'name': 'large_ordinal',
     'w': 224,
     'h': 224,
     'train_dir': 'data/train_res',
@@ -14,14 +14,8 @@ cnf = {
     'rotate': True,
     'learning_rate': 0.005,
     'balance': 0.1,
-    'aug_params': {
-        'zoom_range': (1 / 1.1, 1.1),
-        'rotation_range': (0, 360),
-        'shear_range': (0, 0),
-        'translation_range': (-20, 20),
-        'do_flip': True,
-        'allow_stretch': True,
-    }
+    'regression': False,
+    'ordinal': True,
 }
 
 layers = [
@@ -48,8 +42,8 @@ layers = [
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),
     (FeaturePoolLayer, {'pool_size': 2}),
-    (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
-                         'nonlinearity': rectify if REGRESSION else softmax}),
+    (DenseLayer, {'num_units': N_TARGETS if cnf['regression'] else N_CLASSES,
+                  'nonlinearity': rectify if cnf['regression'] else sigmoid}),
 ]
 
 model = Model(layers=layers, cnf=cnf)

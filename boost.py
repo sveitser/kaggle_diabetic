@@ -1,7 +1,8 @@
-from __future__ import division
+from __future__ import division, print_function
 from collections import Counter
 from datetime import datetime
 import os
+import pprint
 
 import click
 import numpy as np
@@ -9,19 +10,54 @@ import pandas as pd
 from sklearn.metrics import confusion_matrix, make_scorer
 from sklearn.grid_search import GridSearchCV
 from xgboost import XGBRegressor, XGBClassifier
+from scipy.optimize import minimize
+
+from lightning.ranking import PRank, KernelPRank
 
 from sklearn import linear_model
 from sklearn.ensemble import *
 from sklearn.svm import *
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn import calibration
+
+from ordinal_classifier import OrdinalClassifier
 import util
 import nn
 
 from definitions import *
 
 #TRANSFORM_DIR = 'data/transform_spatial'
+#FEATURE_DIR = 'data/tta'
 
+def get_xgb(**kwargs):
+    #args = {
+    #    'n_estimators': np.random.choice([90, 100, 110]),
+    #    'subsample': np.random.choice([0.3, 0.5, 0.7]),
+    #    'colsample_bytree': np.random.choice([0.01, 0.02, 0.05]),
+    #    'learning_rate': np.random.choice([0.08, 0.09, 0.1]),
+    #    'seed': np.random.randint(100),
+    #}
+    args = {
+        'subsample': 0.5,
+        #'colsample_bytree': 0.005,
+        #'colsample_bytree': 0.1,
+        'colsample_bytree': 0.0002,
+        'learning_rate': 0.1,
+        'seed': 1,
+        'n_estimators': 100,
+        'max_depth': 5,
+        #'silent': False,
+    }
+    args.update(kwargs)
+    pprint.pprint(args)
+    return XGBRegressor(**args)
+
+def get_ridge(**kwargs):
+    return linear_model.Ridge(**kwargs)
+
+get_estimator = get_xgb
 
 def per_patient_split(labels):
     a, b = util.split_indices(labels)
@@ -41,10 +77,18 @@ def per_patient_reshape(X):
     n = len(X)
     left_idx = np.arange(n)
     right_idx = left_idx + np.sign(2 * ((left_idx + 1) % 2) - 1)
-    print(left_idx)
-    print(right_idx)
+
     return np.hstack([X[left_idx], X[right_idx], right_eye])
 
+#def per_patient_reshape(X):
+#    right_eye = np.arange(0, X.shape[0])[:, np.newaxis] % 2
+#    #X = X.reshape(len(X) / 2, -1).repeat(2, axis=0)
+#    n = len(X)
+#    left = np.repeat(X[0::2], 2, axis=0)
+#    right = np.repeat(X[1::2], 2, axis=0)
+#    print(left.shape)
+#    print(right.shape)
+#    return np.hstack([left, right, right_eye])
 
 def get_sample_weights(y):
     c = Counter(y)
@@ -54,7 +98,7 @@ def get_sample_weights(y):
     return (2.0 + w) / 3.0
 
 
-def load_transform(directory=TRANSFORM_DIR, test=False, transform_file=None):
+def load_transform(directory=FEATURE_DIR, test=False, transform_file=None):
 
     if transform_file is None:
         tfs = sorted([os.path.join(directory, f) 
@@ -67,9 +111,87 @@ def load_transform(directory=TRANSFORM_DIR, test=False, transform_file=None):
     else:
         tfs = [tf for tf in tfs if 'test' not in tf]
 
+    print('loading transform files')
+    pprint.pprint(tfs)
+
     data = [np.load(open(tf, 'rb')) for tf in tfs]
 
     return np.hstack([t.reshape([t.shape[0], -1]) for t in data])
+
+    #t0 = data[0]
+    #t1 = 2*data[1] - data[0]
+    #t2 = 3*data[2] - 2*t1
+    #print(t0.mean(), t1.mean(), t2.mean())
+    ##data = np.concatenate([data[0][np.newaxis, ...], np.diff(data, axis=0)], axis=0)
+    #data = np.vstack([t0, t1, t2])
+    #print(data.shape)
+    #data = data.reshape([data.shape[0]*data.shape[1], data.shape[2],
+    #                     data.shape[3], data.shape[4]])
+    #print(data.shape)
+    #return data.reshape(data.shape[0], -1)
+
+
+def rescale_labels(y_pred_f, y_train, alpha=0.5):
+    """Setting prediction thresholds to make distributions match.
+    
+    Turns out this leads to slightly worse results.
+    """
+    n_test = len(y_pred_f)
+    n_train = len(y_train)
+    y_pred_s = np.sort(y_pred_f)
+    pred_labels = np.zeros(n_test, dtype=int)
+    true_dist = Counter(y_train)
+    upper_bound = None
+    for i in sorted(true_dist):
+        if i == 0:
+            start = 0
+        else:
+            start = end
+        end = start + int(true_dist[i] * n_test / n_train)
+        lower_bound = -np.inf if upper_bound is None else upper_bound
+        if i == 4:
+            upper_bound = np.inf
+        else:
+            upper_bound = alpha * y_pred_s[end] + (1 - alpha) * (i + 0.5)
+        pred_labels[(y_pred_f >= lower_bound) & (y_pred_f < upper_bound)] = i
+
+    print(pred_labels)
+    return pred_labels
+
+
+def labels_from_thresholds(thresholds, y_pred):
+    threshols = np.abs(thresholds)
+    pred_labels = np.zeros(y_pred.shape, dtype=int)
+    upper = thresholds[0]
+    pred_labels[y_pred < upper] = 0
+    for i, gap in enumerate(thresholds[1:], start=1):
+        lower = upper
+        upper = upper + gap
+        pred_labels[(y_pred >= lower) & (y_pred < upper)] = i
+
+    pred_labels[y_pred >= upper] = 4
+
+    return pred_labels
+
+
+def neg_kappa_from_thresholds(thresholds, y_pred, y_true):
+    return - util.kappa(labels_from_thresholds(thresholds, y_pred), y_true)
+
+
+def get_best_thresholds(y_pred, y_true):
+    res = minimize(neg_kappa_from_thresholds, 
+                   [0.5, 1, 1, 1], (y_pred, y_true),
+                   method='Powell')
+    return res.x, -res.fun
+
+
+def average_thresholds(thresholds):
+    t = np.array(np.abs(thresholds))
+    real_threshold = np.cumsum(t, axis=1)
+    print(real_threshold)
+    mean_threshold = np.mean(real_threshold, axis=0)
+    return [mean_threshold[0]] + list(np.diff(mean_threshold))
+
 
 @click.command()
 @click.option('--cnf', default='config/large.py',
@@ -78,7 +200,8 @@ def load_transform(directory=TRANSFORM_DIR, test=False, transform_file=None):
 @click.option('--grid_search', is_flag=True, default=False)
 @click.option('--per_patient', is_flag=True, default=False)
 @click.option('--transform_file', default=None)
-def fit(cnf, predict, grid_search, per_patient, transform_file):
+@click.option('--n_iter', default=1)
+def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
     model = util.load_module(cnf).model
     files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
@@ -92,85 +215,99 @@ def fit(cnf, predict, grid_search, per_patient, transform_file):
         X_train = per_patient_reshape(X_train)
 
     if predict:
-        X_test = load_transform(test=True)
-        y_train = labels
+
+        if transform_file is not None:
+            transform_file = transform_file.replace('train', 'test')
+        X_test = load_transform(test=True, transform_file=transform_file)
+
         if per_patient:
             X_test = per_patient_reshape(X_test)
-    else:
-        if per_patient:
-            tr, te = per_patient_split(labels)
-        else:
-            tr, te = util.split_indices(labels)
 
-    #print('doing PCA')
-    #from sklearn.decomposition import PCA, RandomizedPCA
-    #pca = RandomizedPCA(n_components=500)
-    #X_train = pca.fit_transform(X_train)
+    #if per_patient:
+    #    tr, te = per_patient_split(labels)
+    #else:
+    #    tr, te = util.split_indices(labels)
+        
+    # util.split_indices split per patient by default now
+    tr, te = util.split_indices(labels)
 
+    # TODO remove these 2 lines
+    #n = len(labels)
+    #tr = np.hstack([tr, n + tr, 2*n + tr])
+    #te = np.hstack([te, n + te, 2*n + te])
+    #labels = np.tile(labels, 3)
+    #print(tr, te)
 
-    est = XGBRegressor(
-        n_estimators=100, 
-        #objective='rank:pairwise',
-        silent=0,
-        subsample=0.5,
-        colsample_bytree=0.15,
-        max_depth=3,
-        learning_rate=0.1,
-        seed=42,
-    )
-
-    #est = LinearSVC(verbose=2, class_weight='auto')
-    #est = ExtraTreesRegressor(100, n_jobs=-1, verbose=2,
-    #                          max_leaf_nodes=100)
-
-    #est = Pipeline([
-    #    ('scale', MinMaxScaler()),
-    ##    #('fit', LinearSVR(C=1, epsilon=0.1, verbose=3, max_iter=10000)),
-    ##    ('fit', linear_model.Ridge()),
-    #     ('fit', linear_model.LogisticRegression(verbose=2,
-    #                                             class_weight='auto', C=0.1))
-    #])
-
-
+    est = get_estimator()
+    #est = linear_model.Ridge()
+    #est = LinearSVR(verbose=2)
+    #est = OrdinalClassifier(XGBClassifier(silent=0, colsample_bytree=0.1,
+    #                                      subsample=0.5))
+    #est = make_pipeline(StandardScaler(), LinearSVR(verbose=3, max_iter=10000))
+    #
+    #   TODO: sort and threshold according to original distribution
+    # 
     if not predict:
         grid = {
-            #'subsample': [0.01, 0.02, 0.05, 0.1, 0.15, 0.2],
-            #'colsample_bytree': [0.05, 0.1, 0.15],
-            #'max_depth': [3, 4, 5],
-            #'learning_rate': [0.05, 0.1, 0.15],
-            #'n_estimators': [50, 100, 150],
-            #'fit__epsilon': [0.05, 0.1, 0.2, 0.25, 0.3],
-            #'fit__C': [1.0, 2.0, 5.0, 10.0, 100.0],
-            'fit__alpha': [0.001, 0.01, 0.1, 0.2, 0.5, 1.0, 10.0],
+            #'subsample': [0.2, 0.5, 0.8],
+            'colsample_bytree': [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05],
+            #'colsample_bytree': [0.002],
+            'max_depth': [3],
+            'learning_rate': [0.1],
+            'n_estimators': [100],
+            'seed': np.arange(n_iter) * 10 + 1,
+            #'epsilon': [0.1, 0.2, 0.25, 0.3],
+            #'C': [5.0, 10, 20],
+            #'alpha': [0.002, 0.005, 0.01, 0.02, 0.05],
+            #'alpha': [0.1, 0.2, 0.5, 1.0, 2.0, 5, 10],
+            #'alpha': [1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3],
+            #'fit__C': [0.01, 0.1, 1.0, 10, 100],
         }
         print("feature matrix {}".format(X_train.shape))
 
         if grid_search:
             kappa_scorer = make_scorer(util.kappa)
-            y_train = labels
             gs = GridSearchCV(est, grid, verbose=3, cv=[(tr, te)], 
-                              scoring=kappa_scorer, n_jobs=4)
-            gs.fit(X_train, y_train)
+                              scoring=kappa_scorer, n_jobs=1, refit=False)
+            gs.fit(X_train, labels)
             pd.set_option('display.height', 500)
             pd.set_option('display.max_rows', 500)
             df = util.grid_search_score_dataframe(gs)
             print(df)
+            df.to_csv('grid_scores.csv')
             df.to_csv('grid_scores_{}.csv'.format(datetime.now().isoformat()))
-            est = gs.best_estimator_
+            #est = gs.best_estimator_
         else:
-            est.fit(X_train[tr], labels[tr])
-                    #sample_weight=get_sample_weights(labels[tr]))
-            y_pred = np.round(est.predict(X_train[te])).astype(int)
-            y_pred = np.clip(y_pred, np.min(labels), np.max(labels))
-            #y_pred = y_pred.reshape(len(y_pred) * 2, 1)
-            print(confusion_matrix(labels[te], y_pred))
-            print("kappa {}".format(util.kappa(labels[te], y_pred)))
+            y_preds = []
+            for i in range(n_iter):
+                print('iter {}'.format(i))
+                print('fitting split training set')
+                est = get_estimator(seed=i * 10 + 1)
+                est.fit(X_train[tr], labels[tr])
+                y_pred = est.predict(X_train[te])
+                y_preds.append(y_pred)
+             
+                y_pred = np.mean(y_preds, axis=0)
+                y_pred  = np.clip(np.round(y_pred).astype(int),
+                                  np.min(labels), np.max(labels))
+
+                print('kappa', i, util.kappa(labels[te], y_pred))
+                print(confusion_matrix(labels[te], y_pred))
 
     if predict:
-        est.fit(X_train, y_train)
 
-        y_pred = np.round(est.predict(X_test)).astype(int)
-        y_pred = np.clip(y_pred, np.min(y_train), np.max(y_train))
+        y_preds = []
+        for i in range(n_iter):
+            print('fitting full training set')
+            est = get_estimator(seed=i * 10 + 1)
+            est.fit(X_train, labels)
+            y_pred = est.predict(X_test)
+            y_preds.append(y_pred)
+
+        y_pred = np.mean(y_preds, axis=0)
+        y_pred  = np.clip(np.round(y_pred).astype(int),
+                          np.min(labels), np.max(labels))
+
         submission_filename = util.get_submission_filename()
         files = util.get_image_files(model.get('test_dir', TEST_DIR))
         names = util.get_names(files)

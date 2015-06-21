@@ -5,13 +5,15 @@ from lasagne import layers
 from model import Model
 
 cnf = {
-    'name': '448_5_3_max_rms_fc',
+    'name': '448_2x2',
     'w': 448,
     'h': 448,
     'train_dir': 'data/train_medium',
     'test_dir': 'data/test_medium',
-    'batch_size_train': 48,
+    'batch_size_train': 40,
     'batch_size_test': 8,
+    'mean': [ 108.73683167, 75.54026794,  53.80962753],
+    'std': [ 70.44262987, 51.35997035, 42.51656026],
     'rotate': True,
     'learning_rate': 0.005,
     'balance': 0.2,
@@ -22,7 +24,8 @@ cnf = {
 def cp(num_filters, *args, **kwargs):
     args = {
         'num_filters': num_filters,
-        'filter_size': (3, 3)
+        'filter_size': (2, 2),
+        'untie_biases': False,
     }
     args.update(kwargs)
     return conv_params(**args)
@@ -30,26 +33,28 @@ def cp(num_filters, *args, **kwargs):
 
 layers = [
     (InputLayer, {'shape': (None, C, cnf['w'], cnf['h'])}),
-    (Conv2DLayer, conv_params(16, filter_size=(5, 5), stride=(2, 2))),
-    (Conv2DLayer, conv_params(16)),
-    (Conv2DLayer, conv_params(16)),
+    (Conv2DLayer, conv_params(32, filter_size=(3, 3), stride=(2, 2))),
+    #(Conv2DLayer, cp(32)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(48, stride=(2, 2))),
-    (Conv2DLayer, cp(48)),
+    (Conv2DLayer, cp(64, filter_size=(3, 3), stride=(2, 2))),
+    #(Conv2DLayer, cp(64)),
+    #(Conv2DLayer, cp(64, border_mode='full')),
+    #(Conv2DLayer, cp(64)),
     (MaxPool2DLayer, pool_params()),
-    (LocalResponseNormalization2DLayer, {}),
-    (Conv2DLayer, cp(96)),
-    (Conv2DLayer, cp(96)),
-    (Conv2DLayer, cp(128)),
-    (Conv2DLayer, cp(128)),
+    (Conv2DLayer, cp(128, border_mode='full')),
+    #(Conv2DLayer, cp(128)),
+    #(Conv2DLayer, cp(128, border_mode='full')),
+    #(Conv2DLayer, cp(128)),
     (MaxPool2DLayer, pool_params()),
     (Conv2DLayer, cp(256)),
-    (Conv2DLayer, cp(256)),
-    (Conv2DLayer, cp(256)),
+    #(Conv2DLayer, cp(256, border_mode='full')),
+    #(Conv2DLayer, cp(256)),
+    #(Conv2DLayer, cp(256, border_mode='full')),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(512)),
-    (Conv2DLayer, cp(512)),
-    #(Conv2DLayer, cp(384)),
+    (Conv2DLayer, cp(512, border_mode='full')),
+    #(Conv2DLayer, cp(512)),
+    #(Conv2DLayer, cp(512, border_mode='full')),
+    #(Conv2DLayer, cp(512)),
     (RMSPoolLayer, pool_params()),
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),

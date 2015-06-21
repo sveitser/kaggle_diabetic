@@ -80,7 +80,7 @@ def process(args):
 def save(img, fname, extension, directory, convert_directory):
     img.save(fname.replace('jpeg', extension).replace(directory,
                                                       convert_directory),
-                                            quality=97)
+             quality=97)
 
 @click.command()
 @click.option('--directory', default='data/train')

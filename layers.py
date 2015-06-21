@@ -1,9 +1,11 @@
+import numpy as np
+
 import lasagne
 from lasagne.layers import *
 from lasagne import init, layers
 import lasagne.layers.normalization
 from lasagne.layers.noise import GaussianNoiseLayer
-from lasagne.nonlinearities import softmax, rectify, leaky_rectify, sigmoid
+from lasagne.nonlinearities import *
 from lasagne.layers.normalization import LocalResponseNormalization2DLayer
 
 from theano import tensor as T

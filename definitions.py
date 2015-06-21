@@ -16,7 +16,7 @@ ESTIMATOR_FILENAME = 'estimator.pickle'
 WEIGHTS = 'weights.pickle'
 CACHE_DIR = 'data/cache.dat'
 TRANSFORM_DIR = 'data/transform'
-
+FEATURE_DIR = 'data/features'
 
 # image dimensions
 C = 3
@@ -42,6 +42,8 @@ STD = [70.57616967, 51.79715616,43.08553464]
 MEAN = [108.7016983, 75.91925049, 54.36722183]
 SUBMISSION = 'data/sub'
 BALANCE_WEIGHT = 0.2
+
+CLASS_WEIGHTS = [1, 10, 3, 5, 5]
 
 # number of class samples in training set
 #CLASSES = [25810, 5292, 2443, 873, 708]
