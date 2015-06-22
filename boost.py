@@ -255,10 +255,9 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     if not predict:
         grid = {
             #'subsample': [0.2, 0.5, 0.8],
-            #'colsample_bytree': [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05],
-            'colsample_bytree': [#0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1,
-                                 0.01, 0.02, 0.05, 0.1,
-                                 0.5, 1.0],
+            #'colsample_bytree': [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02,
+            #                     0.05],
+            'colsample_bytree': [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1],
             'max_depth': [3],
             'learning_rate': [0.1],
             'n_estimators': [100],
