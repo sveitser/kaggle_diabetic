@@ -206,6 +206,15 @@ def balance_per_class_indices(y, weights=CLASS_WEIGHTS):
                             p=np.array(p) / p.sum())
 
 
+def get_weights(y, weights=CLASS_WEIGHTS):
+    y = np.array(y)
+    weights = np.array(weights, dtype=float)
+    p = np.zeros(len(y))
+    for i, weight in enumerate(weights):
+        p[y==i] = weight
+    return p / np.sum(p) * len(p)
+
+
 def split_indices(y, test_size=0.1, random_state=RANDOM_STATE):
     files = get_image_files(TRAIN_DIR)
     names = get_names(files)
