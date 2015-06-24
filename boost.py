@@ -36,7 +36,7 @@ def get_xgb(**kwargs):
     grid = {
         #'colsample_bytree': [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02,
         #                     0.05],
-        'colsample_bytree': [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1],
+        'colsample_bytree': [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2],
         #'colsample_bytree': [0.1, 0.2, 0.3, 0.5],
         #'colsample_bytree': [0.1, 0.2, 0.5],
         #'max_depth': [2, 3, 4],
@@ -46,7 +46,7 @@ def get_xgb(**kwargs):
     }
     args = {
         'subsample': 0.5,
-        'colsample_bytree': 0.05,
+        'colsample_bytree': 0.02,
         'learning_rate': 0.08,
         'seed': 1,
         'n_estimators': 120,
@@ -55,7 +55,11 @@ def get_xgb(**kwargs):
     }
     args.update(kwargs)
     pprint.pprint(args)
-    return XGBRegressor(**args), grid
+    p = Pipeline([
+        ('scale', StandardScaler()),
+        ('fit', XGBRegressor(**args))
+    ])
+    return p, {'fit__' + k: v for k, v in grid.items()}
 
 def get_ridge(**kwargs):
     return linear_model.Ridge(**kwargs)
