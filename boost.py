@@ -19,7 +19,7 @@ from sklearn.ensemble import *
 from sklearn.svm import *
 from sklearn.lda import LDA
 from sklearn.pipeline import Pipeline, make_pipeline
-from sklearn.decomposition import RandomizedPCA as PCA
+from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn import calibration
 
@@ -36,20 +36,19 @@ def get_xgb(**kwargs):
     grid = {
         #'colsample_bytree': [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02,
         #                     0.05],
-        'colsample_bytree': [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1],
-        'max_depth': [3],
-        'learning_rate': [0.1],
-        'n_estimators': [100],
+        'colsample_bytree': [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1],
+        #'colsample_bytree': [0.1, 0.2, 0.5],
+        #'max_depth': [2, 3, 4],
+        'learning_rate': [0.08, 0.1],
+        'n_estimators': [100, 120],
         'seed': np.arange(kwargs.pop('n_iter', 1)) * 10 + 1,
     }
     args = {
         'subsample': 0.5,
-        #'colsample_bytree': 0.005,
-        #'colsample_bytree': 0.1,
-        'colsample_bytree': 0.01,
-        'learning_rate': 0.1,
+        'colsample_bytree': 0.005,
+        'learning_rate': 0.08,
         'seed': 1,
-        'n_estimators': 100,
+        'n_estimators': 120,
         'max_depth': 3,
         #'silent': False,
     }
@@ -65,11 +64,11 @@ def get_lda(**kwargs):
 
 def get_svr(**kwargs):
     grid = {
-        'fit__C': [1.0, 10.0, 100.0],
-        'fit__epsilon': [0.01, 0.1, 0.2, 0.3],
+        'fit__C': [5.0, 10.0, 20.0],
+        'fit__epsilon': [0.15, 0.2, 0.25],
     }
     p = Pipeline([
-        ('tf', PCA(n_components=100)),
+        ('tf', PCA(n_components=200)),
         ('fit', SVR(verbose=2)),
     ])
     return p, grid
@@ -225,8 +224,10 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
 
     if estimator == 'xgb':
         get_estimator = get_xgb
+        n_jobs = 1
     elif estimator == 'svr':
         get_estimator = get_svr
+        n_jobs = 2
 
     model = util.load_module(cnf).model
     files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
@@ -260,7 +261,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
             print(grid)
             kappa_scorer = make_scorer(util.kappa)
             gs = GridSearchCV(est, grid, verbose=3, cv=[(tr, te)], 
-                              scoring=kappa_scorer, n_jobs=1, refit=False)
+                              scoring=kappa_scorer, n_jobs=n_jobs, refit=False)
             gs.fit(X_train, labels)
             pd.set_option('display.height', 500)
             pd.set_option('display.max_rows', 500)
