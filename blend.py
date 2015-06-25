@@ -29,6 +29,10 @@ from layers import *
 from nn import *
 
 
+MIN_LEARNING_RATE = 0.0027864321608040196
+#MAX_MOMENTUM = 0.9721356783919598
+MAX_MOMENTUM = 0.999
+
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
         self.name = name
@@ -49,7 +53,7 @@ def get_estimator(n_features):
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.5}),
         (DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
-        (DropoutLayer, {'p': 0.5}),
+        #(DropoutLayer, {'p': 0.5}),
         (DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
         #(DropoutLayer, {'p': 0.5}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
@@ -70,12 +74,12 @@ def get_estimator(n_features):
         custom_score=('kappa', util.kappa),
 
         on_epoch_finished = [
-            AdjustVariable('update_learning_rate', start=0.01, stop=0.0001),
-            AdjustVariable('update_momentum', start=0.9, stop=0.999),
+            AdjustVariable('update_learning_rate', start=0.01, stop=MIN_LEARNING_RATE),
+            AdjustVariable('update_momentum', start=0.9, stop=MAX_MOMENTUM),
         ],
 
         regression=True,
-        max_epochs=80,
+        max_epochs=145,
         verbose=1,
     )
 
