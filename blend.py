@@ -29,9 +29,12 @@ from layers import *
 from nn import *
 
 
-MIN_LEARNING_RATE = 0.003
+#MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
 MAX_MOMENTUM = 0.985
+#INIT_LEARNING_RATE = 0.00002
+INIT_LEARNING_RATE = 0.002
+MIN_LEARNING_RATE = INIT_LEARNING_RATE * 1e-3
 
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
@@ -64,7 +67,7 @@ def get_estimator(n_features, **kwargs):
         update=nesterov_momentum,
         #update=rmsprop,
 
-        update_learning_rate=theano.shared(float32(0.01)),
+        update_learning_rate=theano.shared(float32(INIT_LEARNING_RATE)),
         update_momentum=theano.shared(float32(0.9)),
 
         objective=RegularizedObjective,
@@ -74,7 +77,8 @@ def get_estimator(n_features, **kwargs):
             if kwargs.get('eval_size', 0.1) > 0.0 else None,
 
         on_epoch_finished = [
-            AdjustVariable('update_learning_rate', start=0.01, stop=MIN_LEARNING_RATE),
+            AdjustVariable('update_learning_rate', start=INIT_LEARNING_RATE,
+                           stop=MIN_LEARNING_RATE),
             AdjustVariable('update_momentum', start=0.9, stop=MAX_MOMENTUM),
         ],
 
@@ -102,9 +106,12 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
     X_train = load_transform(transform_file=transform_file)
 
+    scaler = StandardScaler()
 
     if per_patient:
-        X_train = per_patient_reshape(X_train).astype(np.float32)
+        X_train = per_patient_reshape(X_train)
+        X_train = scaler.fit_transform(X_train).astype(np.float32)
+        
 
     if predict:
 
@@ -113,7 +120,9 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         X_test = load_transform(test=True, transform_file=transform_file)
 
         if per_patient:
-            X_test = per_patient_reshape(X_test).astype(np.float32)
+            X_test = per_patient_reshape(X_test)
+
+        X_test = scaler.transform(X_test).astype(np.float32)
 
     # util.split_indices split per patient by default now
     tr, te = util.split_indices(labels)
