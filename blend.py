@@ -29,9 +29,9 @@ from layers import *
 from nn import *
 
 
-MIN_LEARNING_RATE = 0.0027864321608040196
+MIN_LEARNING_RATE = 0.003
 #MAX_MOMENTUM = 0.9721356783919598
-MAX_MOMENTUM = 0.999
+MAX_MOMENTUM = 0.985
 
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
@@ -48,7 +48,7 @@ class AdjustVariable(object):
         getattr(nn, self.name).set_value(new_value)
 
 
-def get_estimator(n_features):
+def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.5}),
@@ -59,9 +59,8 @@ def get_estimator(n_features):
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
         (DenseLayer, {'num_units': 1, 'nonlinearity': None}),
     ]
-
-    return Net(
-        l,
+    args = dict(
+    
         update=nesterov_momentum,
         #update=rmsprop,
 
@@ -71,7 +70,8 @@ def get_estimator(n_features):
         objective=RegularizedObjective,
 
         eval_size=0.1,
-        custom_score=('kappa', util.kappa),
+        custom_score=('kappa', util.kappa) \
+            if kwargs.get('eval_size', 0.1) > 0.0 else None,
 
         on_epoch_finished = [
             AdjustVariable('update_learning_rate', start=0.01, stop=MIN_LEARNING_RATE),
@@ -79,9 +79,11 @@ def get_estimator(n_features):
         ],
 
         regression=True,
-        max_epochs=145,
+        max_epochs=122,
         verbose=1,
     )
+    args.update(kwargs)
+    return Net(l, **args)
 
 @click.command()
 @click.option('--cnf', default='config/large.py',
@@ -154,14 +156,14 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         y_preds = []
         for i in range(n_iter):
             print('fitting full training set')
-            est = get_estimator(X_train.shape[1])
+            est = get_estimator(X_train.shape[1], eval_size=0.0)
             est.fit(X_train, labels)
             y_pred = est.predict(X_test).ravel()
             y_preds.append(y_pred)
 
         y_pred = np.mean(y_preds, axis=0)
-        y_pred  = np.clip(np.round(y_pred).astype(int),
-                          np.min(labels), np.max(labels))
+        y_pred  = np.clip(np.round(y_pred),
+                          np.min(labels), np.max(labels)).astype(int)
 
         submission_filename = util.get_submission_filename()
         files = util.get_image_files(model.get('test_dir', TEST_DIR))
@@ -169,6 +171,9 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         image_column = pd.Series(names, name='image')
         level_column = pd.Series(y_pred, name='level')
         predictions = pd.concat([image_column, level_column], axis=1)
+
+        print(predictions.tail())
+
         predictions.to_csv(submission_filename, index=False)
         print("saved predictions to {}".format(submission_filename))
 
