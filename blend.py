@@ -32,14 +32,14 @@ from nn import *
 #MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
 START_MOM = 0.9
-STOP_MOM = 0.99
+STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.001
+START_LR = 0.0005
 END_LR = START_LR * 0.001
 ALPHA = 0.005
-N_ITER = 120
+N_ITER = 200
 PATIENCE = 20
-
+POWER = 0.5
 
 def shuffle(*arrays):
     p = np.random.permutation(len(arrays[0]))
@@ -50,16 +50,17 @@ class ShufflingBatchIteratorMixin(object):
     def __iter__(self):
         if not hasattr(self, 'count'):
             self.count = 0
-            self.interval = 10
+            self.interval = 1
+        self.count += 1
         if self.count % self.interval == 0:
             print('shuffle')
-            self.interval = (self.count + 1) * 2
+            self.interval = self.count * 2
             self.X, self.y = shuffle(self.X, self.y)
-        self.count += 1
-        for res in super(ShufflingBatchIteratorMixin, self).__iter__():
-            yield res
+        for X, y in super(ShufflingBatchIteratorMixin, self).__iter__():
+            #X = X + np.random.randn(*X.shape).astype(np.float32) * 0.05
+            yield X, y
 
-class Iterator(ShufflingBatchIteratorMixin, BatchIterator):
+class ShuffleIterator(ShufflingBatchIteratorMixin, BatchIterator):
     pass
 
 class RegularizedObjective(Objective):
@@ -72,7 +73,6 @@ class RegularizedObjective(Objective):
                 + ALPHA * lasagne.regularization.l2(self.input_layer)
         else:
             return loss
-
 
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
@@ -88,8 +88,9 @@ class AdjustVariable(object):
         new_value = float32(self.ls[epoch - 1])
         getattr(nn, self.name).set_value(new_value)
 
+
 class AdjustPower(object):
-    def __init__(self, name, start=START_LR, power=0.5):
+    def __init__(self, name, start=START_LR, power=POWER):
         self.name = name
         self.start = start
         self.power = power
@@ -111,10 +112,10 @@ def get_estimator(n_features, **kwargs):
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.5}),
         (DenseLayer, {'num_units': 32, 'nonlinearity': rectify,
-                      'W': init.GlorotUniform(), 'b':init.Constant(0.1)}),
+                      'W': init.Orthogonal(), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
         (DenseLayer, {'num_units': 32, 'nonlinearity': rectify,
-                      'W': init.GlorotUniform(), 'b':init.Constant(0.01)}),
+                      'W': init.Orthogonal(), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
         (DenseLayer, {'num_units': 1, 'nonlinearity': None}),
@@ -128,7 +129,7 @@ def get_estimator(n_features, **kwargs):
         update_learning_rate=theano.shared(float32(START_LR)),
         update_momentum=theano.shared(float32(START_MOM)),
 
-        batch_iterator_train=Iterator(128),
+        batch_iterator_train=ShuffleIterator(128),
 
         objective=RegularizedObjective,
 
