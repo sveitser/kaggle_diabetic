@@ -31,10 +31,48 @@ from nn import *
 
 #MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
-MAX_MOMENTUM = 0.985
+START_MOM = 0.9
+STOP_MOM = 0.99
 #INIT_LEARNING_RATE = 0.00002
-INIT_LEARNING_RATE = 0.002
-MIN_LEARNING_RATE = INIT_LEARNING_RATE * 1e-3
+START_LR = 0.001
+END_LR = START_LR * 0.001
+ALPHA = 0.005
+N_ITER = 120
+PATIENCE = 20
+
+
+def shuffle(*arrays):
+    p = np.random.permutation(len(arrays[0]))
+    return [array[p] for array in arrays]
+
+
+class ShufflingBatchIteratorMixin(object):
+    def __iter__(self):
+        if not hasattr(self, 'count'):
+            self.count = 0
+            self.interval = 10
+        if self.count % self.interval == 0:
+            print('shuffle')
+            self.interval = (self.count + 1) * 2
+            self.X, self.y = shuffle(self.X, self.y)
+        self.count += 1
+        for res in super(ShufflingBatchIteratorMixin, self).__iter__():
+            yield res
+
+class Iterator(ShufflingBatchIteratorMixin, BatchIterator):
+    pass
+
+class RegularizedObjective(Objective):
+    def get_loss(self, input=None, target=None, deterministic=False, **kwargs):
+
+        loss = super(RegularizedObjective, self).get_loss(
+            input=input, target=target, deterministic=deterministic, **kwargs)
+        if not deterministic:
+            return loss \
+                + ALPHA * lasagne.regularization.l2(self.input_layer)
+        else:
+            return loss
+
 
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
@@ -50,14 +88,33 @@ class AdjustVariable(object):
         new_value = float32(self.ls[epoch - 1])
         getattr(nn, self.name).set_value(new_value)
 
+class AdjustPower(object):
+    def __init__(self, name, start=START_LR, power=0.5):
+        self.name = name
+        self.start = start
+        self.power = power
+        self.ls = None
+
+    def __call__(self, nn, train_history):
+        if self.ls is None:
+            self.ls = self.start * np.array(
+                [(1.0 - float(n) / nn.max_epochs) ** self.power
+                for n in range(nn.max_epochs)])
+
+        epoch = train_history[-1]['epoch']
+        new_value = float32(self.ls[epoch - 1])
+        getattr(nn, self.name).set_value(new_value)
+
 
 def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
+        (DenseLayer, {'num_units': 32, 'nonlinearity': rectify,
+                      'W': init.GlorotUniform(), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
+        (DenseLayer, {'num_units': 32, 'nonlinearity': rectify,
+                      'W': init.GlorotUniform(), 'b':init.Constant(0.01)}),
         #(DropoutLayer, {'p': 0.5}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
         (DenseLayer, {'num_units': 1, 'nonlinearity': None}),
@@ -66,9 +123,12 @@ def get_estimator(n_features, **kwargs):
     
         update=nesterov_momentum,
         #update=rmsprop,
+        #update=adadelta,
 
-        update_learning_rate=theano.shared(float32(INIT_LEARNING_RATE)),
-        update_momentum=theano.shared(float32(0.9)),
+        update_learning_rate=theano.shared(float32(START_LR)),
+        update_momentum=theano.shared(float32(START_MOM)),
+
+        batch_iterator_train=Iterator(128),
 
         objective=RegularizedObjective,
 
@@ -77,13 +137,16 @@ def get_estimator(n_features, **kwargs):
             if kwargs.get('eval_size', 0.1) > 0.0 else None,
 
         on_epoch_finished = [
-            AdjustVariable('update_learning_rate', start=INIT_LEARNING_RATE,
-                           stop=MIN_LEARNING_RATE),
-            AdjustVariable('update_momentum', start=0.9, stop=MAX_MOMENTUM),
+            AdjustPower('update_learning_rate', start=START_LR),
+            AdjustVariable('update_momentum', start=START_MOM, stop=STOP_MOM),
+            #AdjustPower('update_momentum', start=START_MOM, power=0.5),
+            #AdjustLearningRate('update_learning_rate', loss='kappa', 
+            #                   greater_is_better=True, patience=PATIENCE,
+            #                   save=False),
         ],
 
         regression=True,
-        max_epochs=122,
+        max_epochs=N_ITER,
         verbose=1,
     )
     args.update(kwargs)

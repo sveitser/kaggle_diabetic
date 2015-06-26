@@ -13,7 +13,7 @@ import lasagne
 import lasagne.layers
 from lasagne import init
 
-from lasagne.updates import nesterov_momentum, rmsprop
+from lasagne.updates import *
 from lasagne import updates
 from lasagne.objectives import (MaskedObjective, Objective,
                                 categorical_crossentropy, mse)
@@ -142,6 +142,7 @@ class ScoreMonitor(object):
         self.best_weights = None
         self.loss = loss
         self.greater_is_better = greater_is_better
+        self.save = save
 
     def _act(self):
         raise NotImplementedError
@@ -154,7 +155,8 @@ class ScoreMonitor(object):
             self.best_valid = current_valid
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
-            nn.save_params_to(nn._model.weights_file)
+            if self.save:
+                nn.save_params_to(nn._model.weights_file)
         elif self.best_valid_epoch + self.patience < current_epoch:
             self._act(nn, train_history)
 
@@ -204,27 +206,26 @@ class AdjustLearningRate(ScoreMonitor):
         getattr(nn, self.name).set_value(new_value)
 
 
-
-class QueueIterator(BatchIterator):
-    """BatchIterator with seperate thread to do the image reading."""
-    def __iter__(self):
-        queue = Queue.Queue(maxsize=20)
-        end_marker = object()
-
-        def producer():
-            for Xb, yb in super(QueueIterator, self).__iter__():
-                queue.put((np.array(Xb), np.array(yb)))
-            queue.put(end_marker)
-
-        thread = threading.Thread(target=producer)
-        thread.daemon = True
-        thread.start()
-
-        item = queue.get()
-        while item is not end_marker:
-            yield item
-            queue.task_done()
-            item = queue.get()
+#class QueueIterator(BatchIterator):
+#    """BatchIterator with seperate thread to do the image reading."""
+#    def __iter__(self):
+#        queue = Queue.Queue(maxsize=20)
+#        end_marker = object()
+#
+#        def producer():
+#            for Xb, yb in super(QueueIterator, self).__iter__():
+#                queue.put((np.array(Xb), np.array(yb)))
+#            queue.put(end_marker)
+#
+#        thread = threading.Thread(target=producer)
+#        thread.daemon = True
+#        thread.start()
+#
+#        item = queue.get()
+#        while item is not end_marker:
+#            yield item
+#            queue.task_done()
+#            item = queue.get()
 
 
 class Net(NeuralNet):
