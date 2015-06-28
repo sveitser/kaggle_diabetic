@@ -1,6 +1,6 @@
--e git+git@github.com:benanne/Lasagne.git@b22500e736bf1b8f773a5e11257c272880aa6dd6#egg=Lasagne-master
--e git+git@github.com:dnouri/nolearn.git@e4e015e6135323cd6fe680c80a6729e87bf9eddc#egg=nolearn-master
--e git+git@github.com:Theano/Theano.git#egg=Theano
+-e git+https://github.com/benanne/Lasagne.git@b22500e736bf1b8f773a5e11257c272880aa6dd6#egg=Lasagne-master
+-e git+https://github.com/dnouri/nolearn.git@e4e015e6135323cd6fe680c80a6729e87bf9eddc#egg=nolearn-master
+-e git+https://github.com/Theano/Theano.git#egg=Theano
 click==3.3
 matplotlib==1.4.3
 numpy==1.9.2
