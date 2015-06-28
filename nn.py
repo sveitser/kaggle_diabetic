@@ -336,13 +336,15 @@ class Net(NeuralNet):
         loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
 
-        try:
-            transform = [v for k, v in layers.items() 
-                         if 'rmspool' in k or 'maxpool' in k][-1].get_output(
-                                 X_batch, deterministic=True)
-        except IndexError:
-            transform = layers.values()[-2].get_output(X_batch, 
-                                                       deterministic=True)
+        #try:
+        #    transform = [v for k, v in layers.items() 
+        #                 if 'rmspool' in k or 'maxpool' in k][-1].get_output(
+        #                         X_batch, deterministic=True)
+        #except IndexError:
+        #    transform = layers.values()[-2].get_output(X_batch, 
+        #                                               deterministic=True)
+        transform = layers.values()[-2].get_output(X_batch, 
+                                                   deterministic=True)
 
         if not self.regression:
             predict = predict_proba.argmax(axis=1)

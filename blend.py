@@ -7,6 +7,7 @@ import pprint
 import click
 import numpy as np
 import pandas as pd
+import theano
 from sklearn.metrics import confusion_matrix, make_scorer
 from sklearn.grid_search import GridSearchCV
 import xgboost as xgb
@@ -28,23 +29,49 @@ from boost import *
 from layers import *
 from nn import *
 
+#theano.sandbox.cuda.use("cpu")
 
 #MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
 START_MOM = 0.9
-STOP_MOM = 0.95
+STOP_MOM = 0.99
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.0005
+START_LR = 0.0002
 END_LR = START_LR * 0.001
-ALPHA = 0.005
+ALPHA = 0.002
 N_ITER = 200
 PATIENCE = 20
 POWER = 0.5
+
+def epsilon_insensitive(y, t, d0=0.05, d1=0.5):
+    #return T.maximum(epsilon**2.0, (y - t)**2.0) - epsilon ** 2.0
+    #return T.maximum((abs(y - t) - epsilon)**2.0, 0.0)
+    #return T.maximum(abs(y/eps - t/eps), (y/eps - t/eps)**2) * eps
+    #return T.switch(T.lt(abs(y - t), eps), abs(y - t), (y - t)**2 / eps)
+    #return T.switch(T.lt(abs(y - t), eps), 0.5 * (y - t)**2.0, 
+    #                                       eps * (abs(y - t) - 0.5 * eps))
+    a = abs(y - t)
+    #huber = T.switch(T.lt(a, d1), (a - d0)**2.0, a - d1 + (d1 - d0)**2.0)
+    #return T.switch(T.lt(a, d0), 0.0, huber)
+    return T.switch(T.lt(a, d0), 0.0, (a - d0)**2.0)
 
 def shuffle(*arrays):
     p = np.random.permutation(len(arrays[0]))
     return [array[p] for array in arrays]
 
+class ResampleIterator(BatchIterator):
+    def __iter__(self):
+        n_samples = self.X.shape[0]
+        bs = self.batch_size
+        for i in range((n_samples + bs - 1) // bs):
+            #sl = slice(i * bs, (i + 1) * bs)
+            sl = np.random.choice(np.arange(0, n_samples), bs)
+            Xb = self.X[sl]
+            if self.y is not None:
+                yb = self.y[sl]
+            else:
+                yb = None
+            yield self.transform(Xb, yb)
 
 class ShufflingBatchIteratorMixin(object):
     def __iter__(self):
@@ -111,11 +138,11 @@ def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': 32, 'nonlinearity': rectify,
-                      'W': init.Orthogonal(), 'b':init.Constant(0.1)}),
+        (DenseLayer, {'num_units': 32, 'nonlinearity': very_leaky_rectify,
+                      'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': 32, 'nonlinearity': rectify,
-                      'W': init.Orthogonal(), 'b':init.Constant(0.1)}),
+        (DenseLayer, {'num_units': 32, 'nonlinearity': leaky_rectify,
+                      'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
         (DenseLayer, {'num_units': 1, 'nonlinearity': None}),
@@ -129,9 +156,11 @@ def get_estimator(n_features, **kwargs):
         update_learning_rate=theano.shared(float32(START_LR)),
         update_momentum=theano.shared(float32(START_MOM)),
 
-        batch_iterator_train=ShuffleIterator(128),
+        #batch_iterator_train=ShuffleIterator(128),
+        batch_iterator_train=ResampleIterator(128),
 
         objective=RegularizedObjective,
+        #objective_loss_function=epsilon_insensitive,
 
         eval_size=0.1,
         custom_score=('kappa', util.kappa) \
@@ -249,6 +278,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
         predictions.to_csv(submission_filename, index=False)
         print("saved predictions to {}".format(submission_filename))
+
 
 if __name__ == '__main__':
     fit()

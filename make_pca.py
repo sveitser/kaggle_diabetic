@@ -7,7 +7,10 @@ import mahotas as mh
 import numpy as np
 from sklearn.decomposition import PCA
 
+import augment
 import util
+
+from definitions import *
 
 def process(fname):
     img = util.load_image_uint_one(fname)
@@ -21,25 +24,27 @@ def main(directory):
     filenames = util.get_image_files(directory)
     n = len(filenames)
 
-    batches = np.split(filenames, 14)
+    bs = 1000
+    batches = [filenames[i * bs : (i + 1) * bs] 
+               for i in range(int(len(filenames) / bs) + 1)]
 
+    Us, evs = [], []
     for batch in batches:
-        images = util.load_image(batch)
+        #images = util.load_image(batch)
+        images = np.array([augment.load(f, w=256, h=256, deterministic=True,
+                                        mean=MEAN, std=STD)
+                           for f in batch])
         X = images.transpose(0, 2, 3, 1).reshape(-1, 3)
-        pca = PCA()
-        pca.fit(X)
-        print(pca.components_)
-        print(pca.explained_variance_ratio_/np.linalg.norm(pca.explained_variance_ratio_))
+        cov = np.dot(X.T, X) / X.shape[0]
+        U, S, V = np.linalg.svd(cov)
+        ev = np.sqrt(S)
+        Us.append(U)
+        evs.append(ev)
+        print(U)
+        print(ev)
 
-
-
-    
-    #fname = 'data/haralick_{}.npy'.format(directory.split('/')[-1])
-
-    #np.save(open(fname, 'wb'), features)
-
-    #print('saved {} features to {}'.format(features.shape, fname))
-
+    print(np.mean(Us, axis=0))
+    print(np.mean(evs, axis=0))
 
 if __name__ == '__main__':
     main()
