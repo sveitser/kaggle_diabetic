@@ -10,6 +10,12 @@ import util
 
 from definitions import *
 
+# computed with make_pca.py
+U = np.array([[-0.56543481, 0.71983482, 0.40240142],
+              [-0.5989477, -0.02304967, -0.80036049],
+              [-0.56694071, -0.6935729, 0.44423429]] ,dtype=np.float32)
+EV = np.array([1.65513492, 0.48450358, 0.1565086], dtype=np.float32)
+
 def crop_random(img, w=W, h=H):
     x_offset, y_offset = [np.random.randint(dim - s)
                           for dim, s in zip(img.shape[1:], [w, h])]
@@ -214,6 +220,11 @@ def load_perturbed(fname):
     img = util.load_image_uint_one(fname).astype(np.float32) / 255.0
     return perturb(img) * 255
 
+def augment_color(img, sigma=0.1):
+    alpha = np.random.normal(0.0, sigma, 3).astype(np.float32) * EV
+    noise = np.dot(U, alpha.T)
+    return img + noise[:, np.newaxis, np.newaxis]
+
 
 def load(fname, *args, **kwargs):
     #tin = time.time()
@@ -232,6 +243,7 @@ def load(fname, *args, **kwargs):
                             target_shape=(w, h)).astype('float32') * 255.0
     else:
         img = crop_random(img, w=w, h=h)
+
     #t2 = time.time()
     #print('load crop took {}'.format(t2 - tin))
     np.subtract(img, np.array(kwargs['mean'], dtype=np.float32)[:, np.newaxis, 
@@ -240,6 +252,10 @@ def load(fname, *args, **kwargs):
     np.divide(img, np.array(kwargs['std'], dtype=np.float32)[:, np.newaxis, 
                                                              np.newaxis],
               out=img)
+
+    if not kwargs.get('deterministic') and kwargs.get('color') is True:
+        img = augment_color(img, sigma=kwargs.get('sigma', SIGMA_COLOR))
+
     #np.divide(img, 128.0, out=img)
     #print('normalize took {}'.format(time.time() - t2))
     return img.copy()

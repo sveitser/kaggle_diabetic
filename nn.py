@@ -13,7 +13,7 @@ import lasagne
 import lasagne.layers
 from lasagne import init
 
-from lasagne.updates import nesterov_momentum
+from lasagne.updates import *
 from lasagne import updates
 from lasagne.objectives import (MaskedObjective, Objective,
                                 categorical_crossentropy, mse)
@@ -29,8 +29,6 @@ import util
 from iterator import SingleIterator
 
 import augment
-
-from ordinal_loss import ordinal_loss
 
 #
 #   TODO make this take arguments
@@ -60,8 +58,8 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
                         every_n_epochs=5)
         ],
         'objective': RegularizedObjective,
-        'objective_loss_function': ordinal_loss if model.get('ordinal', False) \
-                                             else mse,
+        #'objective_loss_function': ordinal_loss if model.get('ordinal', False) \
+        #                                     else mse,
         'use_label_encoder': False,
         'eval_size': 0.1,
         'regression': model.get('regression', REGRESSION),
@@ -144,6 +142,7 @@ class ScoreMonitor(object):
         self.best_weights = None
         self.loss = loss
         self.greater_is_better = greater_is_better
+        self.save = save
 
     def _act(self):
         raise NotImplementedError
@@ -156,7 +155,8 @@ class ScoreMonitor(object):
             self.best_valid = current_valid
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
-            nn.save_params_to(nn._model.weights_file)
+            if self.save:
+                nn.save_params_to(nn._model.weights_file)
         elif self.best_valid_epoch + self.patience < current_epoch:
             self._act(nn, train_history)
 
@@ -206,27 +206,26 @@ class AdjustLearningRate(ScoreMonitor):
         getattr(nn, self.name).set_value(new_value)
 
 
-
-class QueueIterator(BatchIterator):
-    """BatchIterator with seperate thread to do the image reading."""
-    def __iter__(self):
-        queue = Queue.Queue(maxsize=20)
-        end_marker = object()
-
-        def producer():
-            for Xb, yb in super(QueueIterator, self).__iter__():
-                queue.put((np.array(Xb), np.array(yb)))
-            queue.put(end_marker)
-
-        thread = threading.Thread(target=producer)
-        thread.daemon = True
-        thread.start()
-
-        item = queue.get()
-        while item is not end_marker:
-            yield item
-            queue.task_done()
-            item = queue.get()
+#class QueueIterator(BatchIterator):
+#    """BatchIterator with seperate thread to do the image reading."""
+#    def __iter__(self):
+#        queue = Queue.Queue(maxsize=20)
+#        end_marker = object()
+#
+#        def producer():
+#            for Xb, yb in super(QueueIterator, self).__iter__():
+#                queue.put((np.array(Xb), np.array(yb)))
+#            queue.put(end_marker)
+#
+#        thread = threading.Thread(target=producer)
+#        thread.daemon = True
+#        thread.start()
+#
+#        item = queue.get()
+#        while item is not end_marker:
+#            yield item
+#            queue.task_done()
+#            item = queue.get()
 
 
 class Net(NeuralNet):
@@ -337,9 +336,15 @@ class Net(NeuralNet):
         loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
 
-        transform = [v for k, v in layers.items() 
-                     if 'rmspool' in k or 'maxpool' in k][-1].get_output(
-                             X_batch, deterministic=True)
+        #try:
+        #    transform = [v for k, v in layers.items() 
+        #                 if 'rmspool' in k or 'maxpool' in k][-1].get_output(
+        #                         X_batch, deterministic=True)
+        #except IndexError:
+        #    transform = layers.values()[-2].get_output(X_batch, 
+        #                                               deterministic=True)
+        transform = layers.values()[-2].get_output(X_batch, 
+                                                   deterministic=True)
 
         if not self.regression:
             predict = predict_proba.argmax(axis=1)
@@ -400,9 +405,9 @@ class Net(NeuralNet):
             else:
                 raise ValueError("Unused kwarg: {}".format(k))
 
-    def fit(self, X, y):
-        self.objective.mask = util.get_mask(y)
-        return super(Net, self).fit(X, y)
+    #def fit(self, X, y):
+    #    self.objective.mask = util.get_mask(y)
+    #    return super(Net, self).fit(X, y)
 
     def transform(self, X, transform=None):
 
@@ -432,7 +437,8 @@ class Net(NeuralNet):
             missing = (8 - len(Xb) % 8) % 8
             if missing != 0:
                 tiles = np.ceil(float(missing) / len(Xb)).astype(int) + 1
-                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))[:8]
+                Xb = np.tile(Xb, [tiles] + [1] * (Xb.ndim - 1))\
+                        [:len(Xb) + missing]
 
             preds = self.predict_iter_(Xb)
 
@@ -494,9 +500,12 @@ class Net(NeuralNet):
             y_pred, y_true = [], []
 
             t0 = time()
+            toc = time()
 
             for Xb, yb in self.batch_iterator_train(X_train, y_train):
                 batch_train_loss = self.train_iter_(Xb, yb)
+                #print('iter took {:.4f} s'.format(time() - toc))
+                toc = time()
                 train_losses.append(batch_train_loss)
 
 
@@ -524,8 +533,8 @@ class Net(NeuralNet):
                 #from sklearn.metrics import confusion_matrix
                 #print(confusion_matrix(y_true, np.round(y_pred).astype(int)))
 
-                if self._model.get('ordinal'):
-                    y_pred = np.sum(y_pred, axis=1)
+                #if self._model.get('ordinal'):
+                #    y_pred = np.sum(y_pred, axis=1)
 
                 avg_custom_score = self.custom_score[1](y_true, y_pred)
 

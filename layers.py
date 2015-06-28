@@ -26,12 +26,14 @@ except ImportError:
     try:
         import lasagne.layers.cuda_convnet
         Conv2DLayer = lasagne.layers.cuda_convnet.Conv2DCCLayer
+        Pool2DLayer = lasagne.layers.cuda_convnet.Pool2DLayer
         MaxPool2DLayer = lasagne.layers.cuda_convnet.MaxPool2DCCLayer
         print("using CUDAConvNet backend")
     except ImportError as exc:
         print("failed to load CUDAConvNet backend")
         Conv2DLayer = lasagne.layers.conv.Conv2DLayer
         MaxPool2DLayer = lasagne.layers.pool.MaxPool2DLayer
+        Pool2DLayer = MaxPool2DLayer
         print("using CPU backend")
 
 # nervana kernels
@@ -66,7 +68,6 @@ def pool_params(pool_size=3, stride=(2, 2), **kwargs):
     }
     args.update(kwargs)
     return args
-
 
 # from https://github.com/benanne/kaggle-ndsb/blob/master/tmp_dnn.py
 class RMSPoolLayer(Pool2DLayer):

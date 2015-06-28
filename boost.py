@@ -17,6 +17,7 @@ from lightning.ranking import PRank, KernelPRank
 from sklearn import linear_model
 from sklearn.ensemble import *
 from sklearn.svm import *
+from sklearn.lda import LDA
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -32,32 +33,51 @@ from definitions import *
 #FEATURE_DIR = 'data/tta'
 
 def get_xgb(**kwargs):
-    #args = {
-    #    'n_estimators': np.random.choice([90, 100, 110]),
-    #    'subsample': np.random.choice([0.3, 0.5, 0.7]),
-    #    'colsample_bytree': np.random.choice([0.01, 0.02, 0.05]),
-    #    'learning_rate': np.random.choice([0.08, 0.09, 0.1]),
-    #    'seed': np.random.randint(100),
-    #}
+    grid = {
+        #'colsample_bytree': [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02,
+        #                     0.05],
+        'colsample_bytree': [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2],
+        #'colsample_bytree': [0.1, 0.2, 0.3, 0.5],
+        #'colsample_bytree': [0.1, 0.2, 0.5],
+        #'max_depth': [2, 3, 4],
+        'learning_rate': [0.1],
+        'n_estimators': [100],
+        'seed': np.arange(kwargs.pop('n_iter', 1)) * 10 + 1,
+    }
     args = {
         'subsample': 0.5,
-        #'colsample_bytree': 0.005,
-        #'colsample_bytree': 0.1,
-        'colsample_bytree': 0.0002,
-        'learning_rate': 0.1,
+        'colsample_bytree': 0.02,
+        'learning_rate': 0.08,
         'seed': 1,
-        'n_estimators': 100,
-        'max_depth': 5,
+        'n_estimators': 120,
+        'max_depth': 3,
         #'silent': False,
     }
     args.update(kwargs)
     pprint.pprint(args)
-    return XGBRegressor(**args)
+    p = Pipeline([
+        ('scale', StandardScaler()),
+        ('fit', XGBRegressor(**args))
+    ])
+    return p, {'fit__' + k: v for k, v in grid.items()}
 
 def get_ridge(**kwargs):
     return linear_model.Ridge(**kwargs)
 
-get_estimator = get_xgb
+def get_lda(**kwargs):
+    return make_pipeline(LDA(n_components=100), get_xgb())
+
+def get_svr(**kwargs):
+    grid = {
+        'fit__C': [5.0, 10.0, 20.0],
+        'fit__epsilon': [0.15, 0.2, 0.25],
+    }
+    p = Pipeline([
+        ('tf', PCA(n_components=200)),
+        ('fit', SVR(verbose=2)),
+    ])
+    return p, grid
+
 
 def per_patient_split(labels):
     a, b = util.split_indices(labels)
@@ -115,8 +135,9 @@ def load_transform(directory=FEATURE_DIR, test=False, transform_file=None):
     pprint.pprint(tfs)
 
     data = [np.load(open(tf, 'rb')) for tf in tfs]
-
-    return np.hstack([t.reshape([t.shape[0], -1]) for t in data])
+    data = [t.reshape([t.shape[0], -1]) for t in data]
+    #data = [PCA(n_components=100).fit_transform(x) for x in data]
+    return np.hstack(data)
 
     #t0 = data[0]
     #t1 = 2*data[1] - data[0]
@@ -201,7 +222,17 @@ def average_thresholds(thresholds):
 @click.option('--per_patient', is_flag=True, default=False)
 @click.option('--transform_file', default=None)
 @click.option('--n_iter', default=1)
-def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
+@click.option('--estimator', default='xgb', 
+              type=click.Choice(['xgb', 'svr']))
+def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter, 
+        estimator):
+
+    if estimator == 'xgb':
+        get_estimator = get_xgb
+        n_jobs = 1
+    elif estimator == 'svr':
+        get_estimator = get_svr
+        n_jobs = 2
 
     model = util.load_module(cnf).model
     files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
@@ -223,52 +254,19 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         if per_patient:
             X_test = per_patient_reshape(X_test)
 
-    #if per_patient:
-    #    tr, te = per_patient_split(labels)
-    #else:
-    #    tr, te = util.split_indices(labels)
-        
-    # util.split_indices split per patient by default now
     tr, te = util.split_indices(labels)
 
-    # TODO remove these 2 lines
-    #n = len(labels)
-    #tr = np.hstack([tr, n + tr, 2*n + tr])
-    #te = np.hstack([te, n + te, 2*n + te])
-    #labels = np.tile(labels, 3)
-    #print(tr, te)
+    est, grid = get_estimator(n_iter=n_iter)
 
-    est = get_estimator()
-    #est = linear_model.Ridge()
-    #est = LinearSVR(verbose=2)
-    #est = OrdinalClassifier(XGBClassifier(silent=0, colsample_bytree=0.1,
-    #                                      subsample=0.5))
-    #est = make_pipeline(StandardScaler(), LinearSVR(verbose=3, max_iter=10000))
-    #
-    #   TODO: sort and threshold according to original distribution
-    # 
     if not predict:
-        grid = {
-            #'subsample': [0.2, 0.5, 0.8],
-            'colsample_bytree': [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05],
-            #'colsample_bytree': [0.002],
-            'max_depth': [3],
-            'learning_rate': [0.1],
-            'n_estimators': [100],
-            'seed': np.arange(n_iter) * 10 + 1,
-            #'epsilon': [0.1, 0.2, 0.25, 0.3],
-            #'C': [5.0, 10, 20],
-            #'alpha': [0.002, 0.005, 0.01, 0.02, 0.05],
-            #'alpha': [0.1, 0.2, 0.5, 1.0, 2.0, 5, 10],
-            #'alpha': [1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3],
-            #'fit__C': [0.01, 0.1, 1.0, 10, 100],
-        }
         print("feature matrix {}".format(X_train.shape))
 
         if grid_search:
+            print(est)
+            print(grid)
             kappa_scorer = make_scorer(util.kappa)
             gs = GridSearchCV(est, grid, verbose=3, cv=[(tr, te)], 
-                              scoring=kappa_scorer, n_jobs=1, refit=False)
+                              scoring=kappa_scorer, n_jobs=n_jobs, refit=False)
             gs.fit(X_train, labels)
             pd.set_option('display.height', 500)
             pd.set_option('display.max_rows', 500)
@@ -282,7 +280,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
             for i in range(n_iter):
                 print('iter {}'.format(i))
                 print('fitting split training set')
-                est = get_estimator(seed=i * 10 + 1)
+                est, _ = get_estimator(seed=i * 10 + 1)
                 est.fit(X_train[tr], labels[tr])
                 y_pred = est.predict(X_train[te])
                 y_preds.append(y_pred)
@@ -299,7 +297,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         y_preds = []
         for i in range(n_iter):
             print('fitting full training set')
-            est = get_estimator(seed=i * 10 + 1)
+            est, _ = get_estimator(seed=i * 10 + 1)
             est.fit(X_train, labels)
             y_pred = est.predict(X_test)
             y_preds.append(y_pred)

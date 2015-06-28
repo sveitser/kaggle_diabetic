@@ -3,7 +3,7 @@ from layers import *
 from model import Model
 
 cnf = {
-    'name': '512_4x4',
+    'name': '512_4x4_less_fc',
     'w': 448,
     'h': 448,
     'train_dir': 'data/train_medium',
@@ -15,7 +15,7 @@ cnf = {
     'mean': [ 108.73683167, 75.54026794,  53.80962753],
     'std': [ 70.44262987, 51.35997035, 42.51656026],
     'learning_rate': 0.001,
-    'patience': 40,
+    'patience': 20,
     'regression': True,
     #'n_classes': 3,
     'rotate': True,
@@ -24,7 +24,7 @@ cnf = {
     'balance_ratio': 0.6,
     'final_balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
     'aug_params': {
-        'zoom_range': (1 / 1.1, 1.1),
+        'zoom_range': (1 / 1.4, 1.4),
         'rotation_range': (0, 360),
         'shear_range': (0, 0),
         'translation_range': (-40, 40),
@@ -66,10 +66,10 @@ layers = [
     #(Conv2DLayer, cp(384, border_mode=None, pad=2)),
     (RMSPoolLayer, pool_params(pool_size=(3, 3), stride=(2, 2))), # pad to get even x/y
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': 1024}),
+    (DenseLayer, {'num_units': 128}),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': 1024}),
+    (DenseLayer, {'num_units': 128}),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
                          'nonlinearity': rectify if REGRESSION else softmax}),

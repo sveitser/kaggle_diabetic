@@ -38,7 +38,7 @@ def histogram(ratings, min_rating=None, max_rating=None):
     return hist_ratings
 
 
-def quadratic_weighted_kappa(rater_a, rater_b, min_rating=None, max_rating=None):
+def quadratic_weighted_kappa(rater_a, rater_b, min_rating=0, max_rating=4):
     """
     Calculates the quadratic weighted kappa
     quadratic_weighted_kappa calculates the quadratic weighted kappa
@@ -59,8 +59,11 @@ def quadratic_weighted_kappa(rater_a, rater_b, min_rating=None, max_rating=None)
     is the minimum possible rating, and max_rating is the maximum possible
     rating
     """
-    rater_a = np.array(rater_a)
-    rater_b = np.array(rater_b)
+    rater_a = np.clip(rater_a, min_rating, max_rating)
+    rater_b = np.clip(rater_b, min_rating, max_rating)
+
+    #rater_a = np.array(rater_a)
+    #rater_b = np.array(rater_b)
 
     rater_a = np.round(rater_a).astype(int).ravel()
     rater_a[~np.isfinite(rater_a)] = 0

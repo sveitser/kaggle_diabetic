@@ -65,21 +65,25 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     # util.split_indices split per patient by default now
     tr, te = util.split_indices(labels)
 
-    dtrain = xgb.DMatrix(X_train[tr], label=labels[tr])
+    dtrain = xgb.DMatrix(X_train[tr], label=labels[tr], 
+                         weight=util.get_weights(labels[tr],
+                                                 weights=[1, 2, 1, 1, 1]))
     dtest = xgb.DMatrix(X_train[te], label=labels[te])
 
     param = {
         'silent': 1,
         'eta': 0.1,
-        'base_score': 0.0,
+        'base_score': 1.5,
         #'objective':'rank:pairwise',
         'objective':'reg:linear',
-        'booster':'gblinear',
-        'colsample_bytree': 0.0005,
-        'gamma': 0.01,
-        'max_delta_step': 1,
-        'alpha': 0.01,
-        'lambda': 10.0,
+        'booster':'gbtree',
+        'colsample_bytree': 0.1,
+        'min_child_weight': 20,
+        'gamma': 0.1,
+        #'gamma': 0.5,
+        #'max_delta_step': 1,
+        #'alpha': 0.01,
+        #'lambda': 10.0,
         'max_depth': 3,
         'subsample': 0.5,
     }
