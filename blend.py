@@ -34,14 +34,21 @@ from nn import *
 #MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
 START_MOM = 0.9
-STOP_MOM = 0.99
+STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.0002
+START_LR = 0.002
 END_LR = START_LR * 0.001
-ALPHA = 0.002
+ALPHA = 0.005
 N_ITER = 200
 PATIENCE = 20
 POWER = 0.5
+
+SCHEDULE = {
+    'start': START_LR,
+    150: START_LR / 10.0,
+    180: START_LR / 100.0,
+    N_ITER: 'stop'
+}
 
 def epsilon_insensitive(y, t, d0=0.05, d1=0.5):
     #return T.maximum(epsilon**2.0, (y - t)**2.0) - epsilon ** 2.0
@@ -64,8 +71,10 @@ class ResampleIterator(BatchIterator):
         n_samples = self.X.shape[0]
         bs = self.batch_size
         for i in range((n_samples + bs - 1) // bs):
-            #sl = slice(i * bs, (i + 1) * bs)
-            sl = np.random.choice(np.arange(0, n_samples), bs)
+            if np.random.rand() < 0.2:
+                sl = np.random.randint(0, n_samples, size=bs)
+            else:
+                sl = slice(i * bs, (i + 1) * bs)
             Xb = self.X[sl]
             if self.y is not None:
                 yb = self.y[sl]
@@ -138,11 +147,16 @@ def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': 32, 'nonlinearity': very_leaky_rectify,
+        (DenseLayer, {'num_units': 32, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
         (DenseLayer, {'num_units': 32, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
+        #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify,
+        #              'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
+        #(DropoutLayer, {'p': 0.5}),
+        #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify,
+        #              'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
         (DenseLayer, {'num_units': 1, 'nonlinearity': None}),
@@ -167,7 +181,8 @@ def get_estimator(n_features, **kwargs):
             if kwargs.get('eval_size', 0.1) > 0.0 else None,
 
         on_epoch_finished = [
-            AdjustPower('update_learning_rate', start=START_LR),
+            #AdjustPower('update_learning_rate', start=START_LR),
+            Schedule('update_learning_rate', SCHEDULE),
             AdjustVariable('update_momentum', start=START_MOM, stop=STOP_MOM),
             #AdjustPower('update_momentum', start=START_MOM, power=0.5),
             #AdjustLearningRate('update_learning_rate', loss='kappa', 

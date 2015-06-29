@@ -12,8 +12,6 @@ from sklearn.grid_search import GridSearchCV
 from xgboost import XGBRegressor, XGBClassifier
 from scipy.optimize import minimize
 
-from lightning.ranking import PRank, KernelPRank
-
 from sklearn import linear_model
 from sklearn.ensemble import *
 from sklearn.svm import *

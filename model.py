@@ -10,7 +10,7 @@ from definitions import *
 
 def mkdir(path):
     try:
-        os.mkdir(path)
+        os.makedirs(path)
     except OSError:
         pass
 
@@ -44,14 +44,28 @@ class Model(object):
         return self.cnf.get(k, default)
 
     @property
+    def weights_epoch(self):
+        path = "weights/{}/epochs".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, '{epoch}_{timestamp}_{loss}.pkl')
+
+    @property
     def weights_file(self):
-        mkdir('weights')
-        return "weights/weights_{}.pickle".format(self.cnf['name'])
+        path = "weights/{}".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, 'weights.pkl')
 
     @property
     def retrain_weights_file(self):
-        mkdir('weights')
-        return "weights/weights_retrain_{}.pickle".format(self.cnf['name'])
+        path = "weights/{}/retrain".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, 'weights.pkl')
+
+    @property
+    def final_weights_file(self):
+        path = "weights/{}".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, 'weights_final.pkl')
 
     @property
     def logfile(self):

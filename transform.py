@@ -60,7 +60,7 @@ def transform(cnf, n_iter, test, train, weights_from):
             else:
                 X_t += net.transform(files, transform=tf)
 
-            if i % 5 == 4 or n_iter <= 5:
+            if i % 5 == 4 or n_iter < 5:
                 model.save_transform(X_t / (n_iter + 1), i + 1,
                                      test=True if run == 'test' else False)
                 print('saved {} iterations'.format(i + 1))

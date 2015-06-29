@@ -30,9 +30,6 @@ from iterator import SingleIterator
 
 import augment
 
-#
-#   TODO make this take arguments
-#
 def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
     args = {
         'layers': model.layers,
@@ -47,15 +44,14 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
             resample=False),
         'update': updates.nesterov_momentum,
         'update_learning_rate': theano.shared(
-            float32(model.get('learning_rate', INITIAL_LEARNING_RATE))),
+            #float32(model.get('learning_rate', INITIAL_LEARNING_RATE))),
+            float32(model.get('schedule')[0])),
         'update_momentum': theano.shared(float32(INITIAL_MOMENTUM)),
         'on_epoch_finished': [
             AdjustVariable('update_momentum', 
                             start=model.get('momentum', INITIAL_MOMENTUM),
                             stop=0.999),
-            SaveWeights('weights/weights_{}'.format(model.get('name'))
-                        + '_{epoch}_{timestamp}_{loss}.pickle',
-                        every_n_epochs=5)
+            SaveWeights(model.weights_epoch, every_n_epochs=5),
         ],
         'objective': RegularizedObjective,
         #'objective_loss_function': ordinal_loss if model.get('ordinal', False) \
@@ -79,10 +75,11 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
         save_after_epoch = True
         args['custom_score'] = (CUSTOM_SCORE_NAME, util.kappa)
         args['on_epoch_finished'] += [
-            AdjustLearningRate('update_learning_rate', loss=loss, 
-                               greater_is_better=True, patience=patience // 2),
-            EarlyStopping(loss=CUSTOM_SCORE_NAME,  greater_is_better=True,
-                          patience=patience, save=save_after_epoch)
+            #AdjustLearningRate('update_learning_rate', loss=loss, 
+            #                   greater_is_better=True, patience=patience // 2),
+            Schedule('update_learning_rate', model.get('schedule')),
+            #EarlyStopping(loss=CUSTOM_SCORE_NAME,  greater_is_better=True,
+            #              patience=patience, save=save_after_epoch)
         ]
 
     args.update(kwargs)
@@ -133,6 +130,23 @@ class AdjustVariable(object):
         getattr(nn, self.name).set_value(new_value)
 
 
+class Schedule(object):
+    def __init__(self, name, schedule):
+        self.name = name
+        self.schedule = schedule
+
+    def __call__(self, nn, train_history):
+        epoch = train_history[-1]['epoch']
+        if epoch in self.schedule:
+            new_value = self.schedule[epoch]
+            if new_value == 'stop':
+                if hasattr(nn, '_model'):
+                    nn.save_params_to(nn._model.final_weights_file)
+                raise StopIteration
+            getattr(nn, self.name).set_value(float32(new_value))
+
+
+
 class ScoreMonitor(object):
     def __init__(self, patience=PATIENCE, loss='valid_loss',
                  greater_is_better=False, save=True):
@@ -145,7 +159,7 @@ class ScoreMonitor(object):
         self.save = save
 
     def _act(self):
-        raise NotImplementedError
+        pass
 
     def __call__(self, nn, train_history):
         current_valid = train_history[-1][self.loss] \
