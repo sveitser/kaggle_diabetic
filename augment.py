@@ -213,12 +213,13 @@ def perturb_fixed(img, tform_augment, target_shape=(50, 50)):
     tform_centering = build_centering_transform(shape, target_shape)
     tform_center, tform_uncenter = build_center_uncenter_transforms(shape)
     tform_augment = tform_uncenter + tform_augment + tform_center # shift to center, augment, shift back (for the rotation/shearing)
-    return fast_warp(img, tform_centering + tform_augment, output_shape=target_shape, mode='constant').astype('float32')
+    return fast_warp(img, tform_centering + tform_augment,
+                     output_shape=target_shape, mode='constant')
 
 
 def load_perturbed(fname):
-    img = util.load_image_uint_one(fname).astype(np.float32) / 255.0
-    return perturb(img) * 255
+    img = util.load_image_uint_one(fname).astype(np.float32)
+    return perturb(img)
 
 def augment_color(img, sigma=0.1):
     alpha = np.random.normal(0.0, sigma, 3).astype(np.float32) * EV
