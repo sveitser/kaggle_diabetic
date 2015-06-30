@@ -25,8 +25,9 @@ class Model(object):
 
 
     def setup(self, cnf):
-        cnf['mean'] = cnf.get('mean', MEAN)
-        cnf['std'] = cnf.get('std', STD)
+        # this might save about 1 ms per image
+        cnf['mean'] = (np.ones([cnf['w'], cnf['h'], 3]) * cnf['mean']).T
+        cnf['std'] = (np.ones([cnf['w'], cnf['h'], 3]) * cnf['std']).T
         self.cnf = cnf
 
     def load(self, fname, *args, **kwargs):
@@ -46,6 +47,12 @@ class Model(object):
     @property
     def weights_epoch(self):
         path = "weights/{}/epochs".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, '{epoch}_{timestamp}_{loss}.pkl')
+
+    @property
+    def weights_best(self):
+        path = "weights/{}/best".format(self.cnf['name'])
         mkdir(path)
         return os.path.join(path, '{epoch}_{timestamp}_{loss}.pkl')
 

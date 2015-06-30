@@ -73,8 +73,8 @@ no_augmentation_params_gaussian = {
     'stretch_std': 0.0,
 }
 
-
-def fast_warp(img, tf, output_shape=(W, H), mode='constant', order=1):
+# timings for in 512px out 448px: order=0: 19.8ms, 26ms
+def fast_warp(img, tf, output_shape=(W, H), mode='constant', order=0):
     """
     This wrapper function is faster than skimage.transform.warp
     """
@@ -204,7 +204,7 @@ def perturb(img, augmentation_params=default_augmentation_params,
     tform_augment = tform_uncenter + tform_augment + tform_center # shift to center, augment, shift back (for the rotation/shearing)
     return fast_warp(img, tform_centering + tform_augment, 
                      output_shape=target_shape, 
-                     mode='constant').astype('float32')
+                     mode='constant')
 
 
 # for test-time augmentation
@@ -236,22 +236,18 @@ def load(fname, *args, **kwargs):
     elif kwargs.get('rotate') is True:
         aug_params = kwargs.get('aug_params', default_augmentation_params)
         if kwargs.get('transform') is None:
-            img = perturb(img / 255.0, augmentation_params=aug_params,
-                          target_shape=(w, h)) * 255.0
+            img = perturb(img, augmentation_params=aug_params,
+                          target_shape=(w, h))
         else:
-            img = perturb_fixed(img / 255.0, tform_augment=kwargs['transform'], 
-                            target_shape=(w, h)).astype('float32') * 255.0
+            img = perturb_fixed(img, tform_augment=kwargs['transform'], 
+                            target_shape=(w, h))
     else:
         img = crop_random(img, w=w, h=h)
 
     #t2 = time.time()
     #print('load crop took {}'.format(t2 - tin))
-    np.subtract(img, np.array(kwargs['mean'], dtype=np.float32)[:, np.newaxis, 
-                                                                np.newaxis],
-                out=img)
-    np.divide(img, np.array(kwargs['std'], dtype=np.float32)[:, np.newaxis, 
-                                                             np.newaxis],
-              out=img)
+    np.subtract(img, kwargs['mean'], out=img)
+    np.divide(img, kwargs['std'], out=img)
 
     if not kwargs.get('deterministic') and kwargs.get('color') is True:
         img = augment_color(img, sigma=kwargs.get('sigma', SIGMA_COLOR))
