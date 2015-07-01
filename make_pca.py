@@ -36,6 +36,8 @@ def main(directory):
                            for f in batch])
         X = images.transpose(0, 2, 3, 1).reshape(-1, 3)
         cov = np.dot(X.T, X) / X.shape[0]
+        print(cov)
+        exit(0)
         U, S, V = np.linalg.svd(cov)
         ev = np.sqrt(S)
         Us.append(U)

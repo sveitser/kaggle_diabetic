@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 import pprint
 import os
@@ -25,9 +26,9 @@ class Model(object):
 
 
     def setup(self, cnf):
-        # this might save about 1 ms per image
-        cnf['mean'] = (np.ones([cnf['w'], cnf['h'], 3]) * cnf['mean']).T
-        cnf['std'] = (np.ones([cnf['w'], cnf['h'], 3]) * cnf['std']).T
+        cnf = deepcopy(cnf)
+        cnf['mean'] = np.array(cnf.get('mean', MEAN), dtype=np.float32)
+        cnf['std'] = np.array(cnf.get('std', STD), dtype=np.float32)
         self.cnf = cnf
 
     def load(self, fname, *args, **kwargs):

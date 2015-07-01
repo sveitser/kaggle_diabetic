@@ -33,7 +33,7 @@ cnf = {
         'allow_stretch': True,
     },
     'color': True,
-    'sigma': 0.2,
+    'sigma': 0.1,
 }
 
 layers = [

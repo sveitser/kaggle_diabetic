@@ -34,21 +34,22 @@ from nn import *
 #MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
 START_MOM = 0.9
-STOP_MOM = 0.95
+STOP_MOM = 0.9
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.002
+START_LR = 0.0003
 END_LR = START_LR * 0.001
 ALPHA = 0.005
-N_ITER = 200
+N_ITER = 100
 PATIENCE = 20
 POWER = 0.5
 
 SCHEDULE = {
     'start': START_LR,
-    150: START_LR / 10.0,
-    180: START_LR / 100.0,
+    60: START_LR / 10.0,
+    80: START_LR / 100.0,
     N_ITER: 'stop'
 }
+
 
 def epsilon_insensitive(y, t, d0=0.05, d1=0.5):
     #return T.maximum(epsilon**2.0, (y - t)**2.0) - epsilon ** 2.0

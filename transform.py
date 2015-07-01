@@ -4,11 +4,16 @@ import importlib
 import click
 import numpy as np
 
+import theano.sandbox.cuda
+#theano.sandbox.cuda.use("gpu1") # doesn't seem to work when set here
+#import theano
+
 import util
 import nn
 
 from definitions import *
 from tta import build_quasirandom_transforms
+
 
 @click.command()
 @click.option('--cnf', default='config/best.py',

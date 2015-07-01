@@ -247,12 +247,12 @@ def load(fname, *args, **kwargs):
 
     #t2 = time.time()
     #print('load crop took {}'.format(t2 - tin))
-    np.subtract(img, kwargs['mean'], out=img)
-    np.divide(img, kwargs['std'], out=img)
+    np.subtract(img, kwargs['mean'][:, np.newaxis, np.newaxis], out=img)
+    np.divide(img, kwargs['std'][:, np.newaxis, np.newaxis], out=img)
 
     if not kwargs.get('deterministic') and kwargs.get('color') is True:
         img = augment_color(img, sigma=kwargs.get('sigma', SIGMA_COLOR))
 
     #np.divide(img, 128.0, out=img)
     #print('normalize took {}'.format(time.time() - t2))
-    return img.copy()
+    return img

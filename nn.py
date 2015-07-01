@@ -28,8 +28,6 @@ from quadratic_weighted_kappa import quadratic_weighted_kappa
 import util
 from iterator import SingleIterator
 
-import augment
-
 def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
     args = {
         'layers': model.layers,
@@ -52,6 +50,8 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
                             start=model.get('momentum', INITIAL_MOMENTUM),
                             stop=0.999),
             SaveWeights(model.weights_epoch, every_n_epochs=5),
+            SaveWeights(model.weights_best, every_n_epochs=1, only_best=True),
+            SaveBestWeights(),
         ],
         'objective': RegularizedObjective,
         #'objective_loss_function': ordinal_loss if model.get('ordinal', False) \
@@ -63,8 +63,6 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
         'verbose': 2,
     }
 
-    patience = model.get('patience', PATIENCE)
-
     if retrain_until is not None:
         args['eval_size'] = 0.0
         loss = 'train_loss'
@@ -75,11 +73,7 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
         save_after_epoch = True
         args['custom_score'] = (CUSTOM_SCORE_NAME, util.kappa)
         args['on_epoch_finished'] += [
-            #AdjustLearningRate('update_learning_rate', loss=loss, 
-            #                   greater_is_better=True, patience=patience // 2),
             Schedule('update_learning_rate', model.get('schedule')),
-            #EarlyStopping(loss=CUSTOM_SCORE_NAME,  greater_is_better=True,
-            #              patience=patience, save=save_after_epoch)
         ]
 
     args.update(kwargs)
@@ -146,20 +140,13 @@ class Schedule(object):
             getattr(nn, self.name).set_value(float32(new_value))
 
 
-
-class ScoreMonitor(object):
-    def __init__(self, patience=PATIENCE, loss='valid_loss',
-                 greater_is_better=False, save=True):
-        self.patience = patience
+class SaveBestWeights(object):
+    def __init__(self, loss='kappa', greater_is_better=False):
         self.best_valid = np.inf
         self.best_valid_epoch = 0
         self.best_weights = None
         self.loss = loss
         self.greater_is_better = greater_is_better
-        self.save = save
-
-    def _act(self):
-        pass
 
     def __call__(self, nn, train_history):
         current_valid = train_history[-1][self.loss] \
@@ -169,10 +156,7 @@ class ScoreMonitor(object):
             self.best_valid = current_valid
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
-            if self.save:
-                nn.save_params_to(nn._model.weights_file)
-        elif self.best_valid_epoch + self.patience < current_epoch:
-            self._act(nn, train_history)
+            nn.save_params_to(nn._model.weights_file)
 
 
 class LossThreshold(object):
@@ -193,32 +177,6 @@ class RetrainUntil(LossThreshold):
     def __call__(self, nn, train_history):
         nn.save_params_to(nn._model.retrain_weights_file)
         super(RetrainUntil, self).__call__(nn, train_history)
-
-
-class EarlyStopping(ScoreMonitor):
-    def _act(self, nn, train_history):
-        print("Early stopping.")
-        print("Best valid loss was {:.6f} at epoch {}.".format(
-            self.best_valid, self.best_valid_epoch))
-        #nn.load_params_from(self.best_weights)
-        raise StopIteration
-
-
-class AdjustLearningRate(ScoreMonitor):
-    def __init__(self, name='update_learning_rate', factor=DECAY_FACTOR, 
-                 *args, **kwargs):
-        self.name = name
-        self.factor = factor
-        super(AdjustLearningRate, self).__init__(*args, **kwargs)
-
-    def _act(self, nn, train_history):
-        self.best_valid = np.inf
-        old_value = getattr(nn, self.name).get_value()
-        new_value = float32(old_value * self.factor)
-        print("decreasing {} from {} to {}".format(self.name, old_value,
-                                                   new_value))
-        getattr(nn, self.name).set_value(new_value)
-
 
 #class QueueIterator(BatchIterator):
 #    """BatchIterator with seperate thread to do the image reading."""
@@ -350,15 +308,15 @@ class Net(NeuralNet):
         loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
         predict_proba = output_layer.get_output(X_batch, deterministic=True)
 
-        #try:
-        #    transform = [v for k, v in layers.items() 
-        #                 if 'rmspool' in k or 'maxpool' in k][-1].get_output(
-        #                         X_batch, deterministic=True)
-        #except IndexError:
-        #    transform = layers.values()[-2].get_output(X_batch, 
-        #                                               deterministic=True)
-        transform = layers.values()[-2].get_output(X_batch, 
-                                                   deterministic=True)
+        try:
+            transform = [v for k, v in layers.items() 
+                         if 'rmspool' in k or 'maxpool' in k][-1].get_output(
+                                 X_batch, deterministic=True)
+        except IndexError:
+            transform = layers.values()[-2].get_output(X_batch, 
+                                                       deterministic=True)
+        #transform = layers.values()[-2].get_output(X_batch, 
+        #                                           deterministic=True)
 
         if not self.regression:
             predict = predict_proba.argmax(axis=1)
