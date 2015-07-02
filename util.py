@@ -108,9 +108,11 @@ def get_image_files(datadir, left_only=False):
 def get_names(files):
     return [os.path.basename(x).split('.')[0] for x in files]
 
-
+#from skimage.io import imread
+#from scipy.misc import imread
 def load_image_uint_one(filename):
     img = np.array(Image.open(filename), dtype=np.uint8)
+    #img = imread(filename)
     if len(img.shape) == 3:
         img = img.transpose(2, 1, 0)
     else:

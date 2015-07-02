@@ -36,6 +36,10 @@ except ImportError:
         Pool2DLayer = MaxPool2DLayer
         print("using CPU backend")
 
+
+# try to use theano meta optimizations
+C2DNoStrideLayer = lasagne.layers.conv.Conv2DLayer
+
 # nervana kernels
 #import nervana_theano.layers
 #from lasagne.layers import cuda_convnet
@@ -44,8 +48,8 @@ except ImportError:
 #MaxPool2DLayer = lasagne.layers.cuda_convnet.MaxPool2DCCLayer
 
 def conv_params(num_filters, filter_size=(3, 3), border_mode='same',
-         nonlinearity=leaky_rectify, W=init.GlorotUniform(),
-         b=init.Constant(0.01), untie_biases=True, **kwargs):
+         nonlinearity=leaky_rectify, W=init.Orthogonal(gain=0.5),
+         b=init.Constant(0.05), untie_biases=True, **kwargs):
     args = {
         'num_filters': num_filters,
         'filter_size': filter_size, 

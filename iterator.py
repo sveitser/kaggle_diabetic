@@ -6,12 +6,33 @@ import time
 import numpy as np
 #from nolearn.lasagne import BatchIterator
 
+import SharedArray
+
 import augment
 import util
 
 from definitions import *
 
 N_PROC = 8
+
+# TODO: try threading packend with parallel, might be faster
+
+manager = multiprocessing.Manager()
+shared_dict = manager.dict()
+
+SharedArray.delete('batch')
+shared_array = SharedArray.create('batch', 
+                                  [128, 3, 448, 448], dtype=np.float32)
+
+def load_image(args):
+    i, fname, kwargs = args
+    shared_dict[i] = augment.load(fname, **kwargs)
+
+
+def load_shared(args):
+    i, fname, kwargs = args
+    shared_array[i] = augment.load(fname, **kwargs)
+
 
 class Consumer(multiprocessing.Process):
     
@@ -86,6 +107,87 @@ class QueueIterator(BatchIterator):
             queue.task_done()
             item = queue.get()
 
+from joblib import Parallel, delayed
+
+class ThreadIterator(QueueIterator):
+    def __init__(self, model, *args, **kwargs):
+        self.model = model
+        super(QueueIterator, self).__init__(*args, **kwargs)
+
+    def transform(self, Xb, yb, transform=None):
+        fnames, labels = super(ThreadIterator, self).transform(Xb, yb)
+        bs = len(Xb)
+        Xb = np.zeros([bs, 3, self.model.cnf['w'], self.model.cnf['h']], 
+                      dtype=np.float32)
+        args = []
+        for i, fname in enumerate(fnames):
+            kwargs = self.model.cnf.copy()
+            kwargs['transform'] = transform
+            kwargs.update(self._get_metata())
+            args.append((fname, kwargs))
+
+        imgs = Parallel(n_jobs=N_PROC, backend='threading')(
+                delayed(augment.load)(fname, **kwargs) for fname, kwargs in
+                                                       args)
+        
+        for i, img in enumerate(imgs):
+            Xb[i, ...] = img
+            #Xs.append(augment.load(fname, **kwargs))
+
+        #Xb = np.array(Xs)
+        return Xb, labels
+
+
+class SharedIterator(QueueIterator):
+    def __init__(self, model, *args, **kwargs):
+        self.model = model
+        self.pool = multiprocessing.Pool()
+        super(SharedIterator, self).__init__(*args, **kwargs)
+
+    def _get_metata(self):
+        raise NotImplementedError
+
+    def transform(self, Xb, yb, transform=None):
+
+        fnames, labels = super(SharedIterator, self).transform(Xb, yb)
+        args = []
+
+        for i, fname in enumerate(fnames):
+            kwargs = self.model.cnf.copy()
+            kwargs['transform'] = transform
+            kwargs.update(self._get_metata())
+            args.append((i, fname, kwargs))
+        
+        self.pool.map(load_shared, args)
+        Xb = np.array(shared_array[:len(fnames)], dtype=np.float32)
+
+        return Xb, labels
+
+
+class ManagerIterator(QueueIterator):
+    def __init__(self, model, *args, **kwargs):
+        self.model = model
+        self.pool = multiprocessing.Pool()
+        super(ManagerIterator, self).__init__(*args, **kwargs)
+
+    def _get_metata(self):
+        raise NotImplementedError
+
+    def transform(self, Xb, yb, transform=None):
+
+        fnames, labels = super(ManagerIterator, self).transform(Xb, yb)
+        args = []
+
+        for i, fname in enumerate(fnames):
+            kwargs = self.model.cnf.copy()
+            kwargs['transform'] = transform
+            kwargs.update(self._get_metata())
+            args.append((i, fname, kwargs))
+        
+        self.pool.map(load_image, args)
+        Xb = np.array([shared_dict[i] for i, _ in enumerate(fnames)])
+
+        return Xb, labels
 
 
 class ProcessIterator(QueueIterator):
@@ -117,7 +219,7 @@ class ProcessIterator(QueueIterator):
         return Xb, labels
 
 
-class SingleIterator(ProcessIterator):
+class SingleIterator(SharedIterator):
     def __init__(self, model, deterministic=False,
                  resample=False, *args, **kwargs):
         self.deterministic = deterministic

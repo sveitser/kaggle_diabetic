@@ -17,7 +17,7 @@ from lasagne.updates import *
 from lasagne import updates
 from lasagne.objectives import (MaskedObjective, Objective,
                                 categorical_crossentropy, mse)
-from lasagne.layers import get_output
+from lasagne.layers import get_output, InputLayer
 from nolearn.lasagne import NeuralNet, BatchIterator
 from nolearn.lasagne.handlers import SaveWeights
 import theano
@@ -34,15 +34,12 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
         'batch_iterator_train': SingleIterator(
             model, batch_size=model.get('batch_size_train', BATCH_SIZE),
             deterministic=False, resample=True),
-        # TODO pass deterministic argument
         'batch_iterator_test': SingleIterator(
             model, batch_size=model.get('batch_size_test', BATCH_SIZE), 
             deterministic=False if tta else True, 
-            #deterministic=False,
             resample=False),
         'update': updates.nesterov_momentum,
         'update_learning_rate': theano.shared(
-            #float32(model.get('learning_rate', INITIAL_LEARNING_RATE))),
             float32(model.get('schedule')[0])),
         'update_momentum': theano.shared(float32(INITIAL_MOMENTUM)),
         'on_epoch_finished': [
@@ -98,13 +95,16 @@ def float32(k):
 
 class RegularizedObjective(Objective):
 
-    def get_loss(self, input=None, target=None, deterministic=False, **kwargs):
+    def get_loss(self, input=None, target=None, aggregation=None,
+                 deterministic=False, **kwargs):
 
         loss = super(RegularizedObjective, self).get_loss(
-            input=input, target=target, deterministic=deterministic, **kwargs)
+            input=input, target=target, aggregation=aggregation,
+            deterministic=deterministic, **kwargs)
         if not deterministic:
             return loss \
-                + 0.0005 * lasagne.regularization.l2(self.input_layer)
+                + 0.0005 * lasagne.regularization.regularize_network_params(
+                    self.input_layer, lasagne.regularization.l2)
         else:
             return loss
 
@@ -271,30 +271,14 @@ class Net(NeuralNet):
             out = self._output_layer = self.initialize_layers()
         self._check_for_unused_kwargs()
 
-        if self.X_tensor_type is None:
-            types = {
-                2: T.matrix,
-                3: T.tensor3,
-                4: T.tensor4,
-                }
-            first_layer = list(self.layers_.values())[0]
-            self.X_tensor_type = types[len(first_layer.shape)]
-
         iter_funcs = self._create_iter_funcs(
             self.layers_, self.objective, self.update,
-            self.X_tensor_type,
             self.y_tensor_type,
             )
-        for name, fun in iter_funcs.items():
-            setattr(self, name, fun)
-        #self.train_iter_, self.eval_iter_, self.predict_iter_ = iter_funcs
+        self.train_iter_, self.eval_iter_, self.predict_iter_, self.transform_iter_ = iter_funcs
         self._initialized = True
 
-    def _create_iter_funcs(self, layers, objective, update, input_type,
-                           output_type):
-        X = input_type('x')
-        y = output_type('y')
-        X_batch = input_type('x_batch')
+    def _create_iter_funcs(self, layers, objective, update, output_type):
         y_batch = output_type('y_batch')
 
         output_layer = list(layers.values())[-1]
@@ -304,17 +288,13 @@ class Net(NeuralNet):
             # XXX breaking the Lasagne interface a little:
             obj.layers = layers
 
-        loss_train = obj.get_loss(X_batch, y_batch)
-        loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
-        predict_proba = output_layer.get_output(X_batch, deterministic=True)
+        loss_train = obj.get_loss(None, y_batch)
+        loss_eval = obj.get_loss(None, y_batch, deterministic=True)
+        predict_proba = get_output(output_layer, None, deterministic=True)
 
-        try:
-            transform = [v for k, v in layers.items() 
-                         if 'rmspool' in k or 'maxpool' in k][-1].get_output(
-                                 X_batch, deterministic=True)
-        except IndexError:
-            transform = layers.values()[-2].get_output(X_batch, 
-                                                       deterministic=True)
+        transform = get_output([v for k, v in layers.items() 
+                               if 'rmspool' in k or 'maxpool' in k][-1],
+                               None, deterministic=True)
         #transform = layers.values()[-2].get_output(X_batch, 
         #                                           deterministic=True)
 
@@ -324,48 +304,97 @@ class Net(NeuralNet):
         else:
             accuracy = loss_eval
 
-        all_params = self.get_all_params()
+        all_params = self.get_all_params(trainable=True)
         update_params = self._get_params_for('update')
         updates = update(loss_train, all_params, **update_params)
 
+        input_layers = [layer for layer in layers.values()
+                        if isinstance(layer, InputLayer)]
+
+        X_inputs = [theano.Param(input_layer.input_var, name=input_layer.name)
+                    for input_layer in input_layers]
+        inputs = X_inputs + [theano.Param(y_batch, name="y")]
+
         train_iter = theano.function(
-            inputs=[theano.Param(X_batch), theano.Param(y_batch)],
+            inputs=inputs,
             outputs=[loss_train],
             updates=updates,
-            givens={
-                X: X_batch,
-                y: y_batch,
-                },
             )
         eval_iter = theano.function(
-            inputs=[theano.Param(X_batch), theano.Param(y_batch)],
+            inputs=inputs,
             outputs=[loss_eval, accuracy],
-            givens={
-                X: X_batch,
-                y: y_batch,
-                },
             )
         predict_iter = theano.function(
-            inputs=[theano.Param(X_batch)],
+            inputs=X_inputs,
             outputs=predict_proba,
-            givens={
-                X: X_batch,
-                },
             )
         transform_iter = theano.function(
-            inputs=[theano.Param(X_batch)],
+            inputs=X_inputs,
             outputs=transform,
-            givens={
-                X: X_batch,
-                },
             )
+        return train_iter, eval_iter, predict_iter, transform_iter
 
-        return {
-            'train_iter_': train_iter,
-            'eval_iter_': eval_iter,
-            'predict_iter_': predict_iter,
-            'transform_iter_': transform_iter
-        }
+
+#    def _create_iter_funcs(self, layers, objective, update, input_type,
+#                           output_type):
+#        X = input_type('x')
+#        y = output_type('y')
+#        X_batch = input_type('x_batch')
+#        y_batch = output_type('y_batch')
+#
+#        output_layer = list(layers.values())[-1]
+#        objective_params = self._get_params_for('objective')
+#        obj = objective(output_layer, **objective_params)
+#        if not hasattr(obj, 'layers'):
+#            # XXX breaking the Lasagne interface a little:
+#            obj.layers = layers
+#
+#        loss_train = obj.get_loss(X_batch, y_batch)
+#        loss_eval = obj.get_loss(X_batch, y_batch, deterministic=True)
+#        predict_proba = output_layer.get_output(X_batch, deterministic=True)
+#
+#
+#        if not self.regression:
+#            predict = predict_proba.argmax(axis=1)
+#            accuracy = T.mean(T.eq(predict, y_batch))
+#        else:
+#            accuracy = loss_eval
+#
+#        all_params = self.get_all_params()
+#        update_params = self._get_params_for('update')
+#        updates = update(loss_train, all_params, **update_params)
+#
+#        train_iter = theano.function(
+#            inputs=[theano.Param(X_batch), theano.Param(y_batch)],
+#            outputs=[loss_train],
+#            updates=updates,
+#            givens={
+#                X: X_batch,
+#                y: y_batch,
+#                },
+#            )
+#        eval_iter = theano.function(
+#            inputs=[theano.Param(X_batch), theano.Param(y_batch)],
+#            outputs=[loss_eval, accuracy],
+#            givens={
+#                X: X_batch,
+#                y: y_batch,
+#                },
+#            )
+#        predict_iter = theano.function(
+#            inputs=[theano.Param(X_batch)],
+#            outputs=predict_proba,
+#            givens={
+#                X: X_batch,
+#                },
+#            )
+#
+#        return {
+#            'train_iter_': train_iter,
+#            'eval_iter_': eval_iter,
+#            'predict_iter_': predict_iter,
+#            'transform_iter_': transform_iter
+#        }
 
     def _check_for_unused_kwargs(self):
         names = list(self.layers_.keys()) + ['update', 'objective', 'loss']
@@ -476,6 +505,11 @@ class Net(NeuralNet):
 
             for Xb, yb in self.batch_iterator_train(X_train, y_train):
                 batch_train_loss = self.train_iter_(Xb, yb)
+                #print(batch_train_loss)
+
+                if not np.isfinite(batch_train_loss[0]):
+                    raise ValueError("non finite loss")
+
                 #print('iter took {:.4f} s'.format(time() - toc))
                 toc = time()
                 train_losses.append(batch_train_loss)
