@@ -21,7 +21,7 @@ cnf = {
     'rotate': True,
     'balance': 1.0,
     #'balance_weights':  np.array([1, 20, 4, 40, 40], dtype=float),
-    'balance_weights':  np.array([1, 4, 3, 4, 4], dtype=float),
+    'balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
     'balance_ratio': 0.95,
     'final_balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
     'aug_params': {
