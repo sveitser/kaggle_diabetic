@@ -21,8 +21,7 @@ from nolearn.lasagne import NeuralNet
 from lasagne.updates import *
 
 from ordinal_classifier import OrdinalClassifier
-import util
-import nn
+import iterator, nn, util
 
 from definitions import *
 from boost import *
@@ -34,14 +33,15 @@ from nn import *
 #MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
 START_MOM = 0.9
-STOP_MOM = 0.9
+STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.0003
+START_LR = 0.0005
 END_LR = START_LR * 0.001
 ALPHA = 0.005
 N_ITER = 100
 PATIENCE = 20
 POWER = 0.5
+N_HIDDEN = 32
 
 SCHEDULE = {
     'start': START_LR,
@@ -97,19 +97,26 @@ class ShufflingBatchIteratorMixin(object):
             #X = X + np.random.randn(*X.shape).astype(np.float32) * 0.05
             yield X, y
 
+
 class ShuffleIterator(ShufflingBatchIteratorMixin, BatchIterator):
     pass
 
+
 class RegularizedObjective(Objective):
-    def get_loss(self, input=None, target=None, deterministic=False, **kwargs):
+
+    def get_loss(self, input=None, target=None, aggregation=None,
+                 deterministic=False, **kwargs):
 
         loss = super(RegularizedObjective, self).get_loss(
-            input=input, target=target, deterministic=deterministic, **kwargs)
+            input=input, target=target, aggregation=aggregation,
+            deterministic=deterministic, **kwargs)
         if not deterministic:
             return loss \
-                + ALPHA * lasagne.regularization.l2(self.input_layer)
+                + ALPHA * lasagne.regularization.regularize_network_params(
+                    self.input_layer, lasagne.regularization.l2)
         else:
             return loss
+
 
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
@@ -147,12 +154,14 @@ class AdjustPower(object):
 def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
-        #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': 32, 'nonlinearity': leaky_rectify,
+        #(DropoutLayer, {'p': 0.8}),
+        (DenseLayer, {'num_units': N_HIDDEN, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': 32, 'nonlinearity': leaky_rectify,
+        #(FeaturePoolLayer, {'pool_size': 2}),
+        (DenseLayer, {'num_units': N_HIDDEN, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
+        #(FeaturePoolLayer, {'pool_size': 2}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify,
         #              'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
@@ -218,8 +227,8 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     scaler = StandardScaler()
 
     if per_patient:
-        X_train = per_patient_reshape(X_train)
-        X_train = scaler.fit_transform(X_train).astype(np.float32)
+        X_train = per_patient_reshape(X_train) 
+        X_train = scaler.fit_transform(X_train).astype(np.float32) 
         
 
     if predict:
@@ -297,4 +306,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
 
 if __name__ == '__main__':
-    fit()
+    try:
+        fit()
+    finally:
+        iterator.delete_shared_array()

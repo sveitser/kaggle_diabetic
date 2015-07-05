@@ -22,7 +22,7 @@ cnf = {
     'balance': 1.0,
     #'balance_weights':  np.array([1, 20, 4, 40, 40], dtype=float),
     'balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
-    'balance_ratio': 0.95,
+    'balance_ratio': 0.6,
     'final_balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
     'aug_params': {
         'zoom_range': (1 / 1.4, 1.4),
@@ -35,10 +35,10 @@ cnf = {
     'color': True,
     'sigma': 0.1,
     'schedule': {
-        0: 0.003,
-        60: 0.0003,
-        90: 0.00003,
-        110: 'stop',
+        0: 0.001,
+        30: 0.0001,
+        80: 0.00001,
+        130: 'stop',
     },
 }
 
@@ -58,6 +58,7 @@ layers = [
     (MaxPool2DLayer, pool_params()),
     (Conv2DLayer, cp(64, filter_size=(4, 4), stride=(2, 2))),
     (Conv2DLayer, cp(64)),
+    (Conv2DLayer, cp(64)),
     (MaxPool2DLayer, pool_params()),
     (Conv2DLayer, cp(128)),
     (Conv2DLayer, cp(128)),
@@ -67,6 +68,7 @@ layers = [
     (Conv2DLayer, cp(256)),
     (Conv2DLayer, cp(256)),
     (MaxPool2DLayer, pool_params()),
+    (Conv2DLayer, cp(512)),
     (Conv2DLayer, cp(512)),
     (RMSPoolLayer, pool_params(pool_size=(3, 3), stride=(2, 2))), # pad to get even x/y
     #(Conv2DLayer, cp(512)),

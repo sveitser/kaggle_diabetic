@@ -82,7 +82,13 @@ class Model(object):
         return 'log/{}_{}.log'.format(self.get('name'), t)
 
     def get_transform_fname(self, n_iter, test=False):
-        fname = '{}_{}_iter_{}.npy'.format(self.cnf['name'], 
+        fname = '{}_{}_mean_iter_{}.npy'.format(self.cnf['name'], 
+                                          ('test' if test else 'train'), 
+                                          n_iter)
+        return os.path.join(TRANSFORM_DIR, fname)
+
+    def get_std_fname(self, n_iter, test=False):
+        fname = '{}_{}_std_iter_{}.npy'.format(self.cnf['name'], 
                                           ('test' if test else 'train'), 
                                           n_iter)
         return os.path.join(TRANSFORM_DIR, fname)
@@ -90,6 +96,10 @@ class Model(object):
     def save_transform(self, X, n_iter, test=False):
         mkdir(TRANSFORM_DIR)
         np.save(open(self.get_transform_fname(n_iter, test=test), 'wb'), X)
+
+    def save_std(self, X, n_iter, test=False):
+        mkdir(TRANSFORM_DIR)
+        np.save(open(self.get_std_fname(n_iter, test=test), 'wb'), X)
 
     def load_transform(self, test=False):
         return np.load(open(self.get_transform_fname(test=test)))

@@ -2,6 +2,8 @@ import multiprocessing
 import threading
 import Queue
 import time
+from uuid import uuid4
+import warnings
 
 import numpy as np
 #from nolearn.lasagne import BatchIterator
@@ -20,9 +22,14 @@ N_PROC = 8
 manager = multiprocessing.Manager()
 shared_dict = manager.dict()
 
-SharedArray.delete('batch')
-shared_array = SharedArray.create('batch', 
+shared_array_name = str(uuid4())
+shared_array = SharedArray.create(shared_array_name, 
                                   [128, 3, 448, 448], dtype=np.float32)
+warnings.warn("created shared memory array {}".format(shared_array_name))
+
+def delete_shared_array():
+    SharedArray.delete(shared_array_name)
+    print("deleted shared memory array {}".format(shared_array_name))
 
 def load_image(args):
     i, fname, kwargs = args
@@ -58,8 +65,9 @@ class BatchIterator(object):
     def __init__(self, batch_size):
         self.batch_size = batch_size
 
-    def __call__(self, X, y=None, transform=None):
+    def __call__(self, X, y=None, transform=None, color_vec=None):
         self.tf = transform
+        self.color_vec = color_vec
         self.X, self.y = X, y
         return self
 
@@ -73,7 +81,7 @@ class BatchIterator(object):
                 yb = self.y[sl]
             else:
                 yb = None
-            yield self.transform(Xb, yb, transform=self.tf)
+            yield self.transform(Xb, yb)
 
     def transform(self, Xb, yb):
         return Xb, yb
@@ -147,17 +155,18 @@ class SharedIterator(QueueIterator):
     def _get_metata(self):
         raise NotImplementedError
 
-    def transform(self, Xb, yb, transform=None):
+    def transform(self, Xb, yb):
 
         fnames, labels = super(SharedIterator, self).transform(Xb, yb)
         args = []
 
         for i, fname in enumerate(fnames):
             kwargs = self.model.cnf.copy()
-            kwargs['transform'] = transform
+            kwargs['transform'] = getattr(self, 'tf', None)
+            kwargs['color_vec'] = getattr(self, 'color_vec', None)
             kwargs.update(self._get_metata())
             args.append((i, fname, kwargs))
-        
+
         self.pool.map(load_shared, args)
         Xb = np.array(shared_array[:len(fnames)], dtype=np.float32)
 
@@ -173,7 +182,7 @@ class ManagerIterator(QueueIterator):
     def _get_metata(self):
         raise NotImplementedError
 
-    def transform(self, Xb, yb, transform=None):
+    def transform(self, Xb, yb):
 
         fnames, labels = super(ManagerIterator, self).transform(Xb, yb)
         args = []
@@ -232,7 +241,7 @@ class SingleIterator(SharedIterator):
         return {'deterministic': self.deterministic}
 
     # this isn't needed if weights are set via masked objective
-    def __call__(self, X, y=None, transform=None):
+    def __call__(self, X, y=None, transform=None, color_vec=None):
 
         #balance = max(self.model.get('balance', BALANCE_WEIGHT),
         #              self.model.get('min_balance', 0.0))
@@ -257,11 +266,11 @@ class SingleIterator(SharedIterator):
             #self.model.cnf['balance'] = balance \
             #    * self.model.cnf.get('balance_ratio', 1)
 
-        return super(SingleIterator, self).__call__(X, y, transform=transform)
+        return super(SingleIterator, self).__call__(X, y, transform=transform,
+                                                    color_vec=color_vec)
 
     def transform(self, Xb, yb, transform=None):
-        Xb, labels = super(SingleIterator, self).transform(Xb, yb,
-                                                           transform=transform)
+        Xb, labels = super(SingleIterator, self).transform(Xb, yb)
 
         # add dummy data for nervana kernels that need batch_size % 8 = 0
         missing = self.batch_size - len(Xb)

@@ -31,7 +31,14 @@ cnf = {
         'translation_range': (-40, 40),
         'do_flip': True,
         'allow_stretch': True,
-    }
+    },
+    'color': True,
+    'sigma': 0.1,
+    'schedule': {
+        0: 0.0001,
+        80: 0.00001,
+        100: 'stop',
+    },
 }
 
 layers = [

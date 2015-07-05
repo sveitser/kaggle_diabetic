@@ -292,11 +292,15 @@ class Net(NeuralNet):
         loss_eval = obj.get_loss(None, y_batch, deterministic=True)
         predict_proba = get_output(output_layer, None, deterministic=True)
 
-        transform = get_output([v for k, v in layers.items() 
-                               if 'rmspool' in k or 'maxpool' in k][-1],
-                               None, deterministic=True)
-        #transform = layers.values()[-2].get_output(X_batch, 
-        #                                           deterministic=True)
+        try:
+            transform = get_output([v for k, v in layers.items() 
+                                   if 'rmspool' in k or 'maxpool' in k][-1],
+                                   None, deterministic=True)
+        except IndexError:
+            transform = get_output(layers.values()[-2], None,
+                                   deterministic=True)
+        #transform = get_output(layers.values()[-2], None,
+        #                       deterministic=True)
 
         if not self.regression:
             predict = predict_proba.argmax(axis=1)
@@ -410,10 +414,11 @@ class Net(NeuralNet):
     #    self.objective.mask = util.get_mask(y)
     #    return super(Net, self).fit(X, y)
 
-    def transform(self, X, transform=None):
+    def transform(self, X, transform=None, color_vec=None):
 
         features = []
-        for Xb, yb in self.batch_iterator_test(X, transform=transform):
+        for Xb, yb in self.batch_iterator_test(X, transform=transform,
+                                               color_vec=color_vec):
             # add dummy data for nervana kernels that need batch_size % 8 = 0
             missing = (8 - len(Xb) % 8) % 8
             if missing != 0:
@@ -514,9 +519,15 @@ class Net(NeuralNet):
                 toc = time()
                 train_losses.append(batch_train_loss)
 
-
+            #loss_per_class = []
             for Xb, yb in self.batch_iterator_test(X_valid, y_valid):
+
                 batch_valid_loss, accuracy = self.eval_iter_(Xb, yb)
+                #class_dist = dict(Counter(yb.flatten()))
+                #class_dist['loss'] = batch_valid_loss
+                #print(class_dist)
+                #loss_per_class.append(class_dist)
+
                 valid_losses.append(batch_valid_loss)
                 valid_accuracies.append(accuracy)
                 y_true.append(yb)
@@ -524,6 +535,10 @@ class Net(NeuralNet):
                     y_prob = self.predict_iter_(Xb)
                     y_pred.append(y_prob)
                     #custom_score.append(self.custom_score[1](yb, y_prob))
+
+            #df = pd.DataFrame(loss_per_class)
+            #df.to_pickle('loss.df')
+            #exit(0)
 
             avg_train_loss = np.mean(train_losses)
             avg_valid_loss = np.mean(valid_losses)

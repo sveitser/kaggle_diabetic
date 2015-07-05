@@ -221,8 +221,11 @@ def load_perturbed(fname):
     img = util.load_image_uint_one(fname).astype(np.float32)
     return perturb(img)
 
-def augment_color(img, sigma=0.1):
-    alpha = np.random.normal(0.0, sigma, 3).astype(np.float32) * EV
+def augment_color(img, sigma=0.1, color_vec=None):
+    if color_vec is None:
+        color_vec = np.random.normal(0.0, sigma, 3)
+    
+    alpha = color_vec.astype(np.float32) * EV
     noise = np.dot(U, alpha.T)
     return img + noise[:, np.newaxis, np.newaxis]
 
@@ -251,7 +254,8 @@ def load(fname, *args, **kwargs):
     np.divide(img, kwargs['std'][:, np.newaxis, np.newaxis], out=img)
 
     if not kwargs.get('deterministic') and kwargs.get('color') is True:
-        img = augment_color(img, sigma=kwargs.get('sigma', SIGMA_COLOR))
+        img = augment_color(img, sigma=kwargs.get('sigma', SIGMA_COLOR),
+                            color_vec=kwargs.get('color_vec', None))
 
     #np.divide(img, 128.0, out=img)
     #print('normalize took {}'.format(time.time() - t2))
