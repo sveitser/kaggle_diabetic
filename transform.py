@@ -35,9 +35,9 @@ def transform(cnf, n_iter, test, train, weights_from):
     model.cnf['batch_size_test'] = 64
 
     # reduced augmentation for TTA
-    model.cnf['sigma'] = 0.05
-    model.cnf['aug_params']['zoom_range'] = (1.0 / 1.2, 1.2)
-    model.cnf['aug_params']['translation_range'] = (20, 20)
+    #model.cnf['sigma'] = 0.05
+    #model.cnf['aug_params']['zoom_range'] = (1.0 / 1.2, 1.2)
+    #model.cnf['aug_params']['translation_range'] = (20, 20)
 
     # only rotation tta
     #model.cnf['color'] = False
@@ -81,7 +81,7 @@ def transform(cnf, n_iter, test, train, weights_from):
                 std = np.sqrt((Xs2 - Xs**2 / i) / (i - 1))
                 model.save_transform(Xs / i, i,
                                      test=True if run == 'test' else False)
-                model.save_std(std, i + 1,
+                model.save_std(std, i,
                                test=True if run == 'test' else False)
                 print('saved {} iterations'.format(i))
 

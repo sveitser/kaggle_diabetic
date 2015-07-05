@@ -21,9 +21,9 @@ cnf = {
     'rotate': True,
     'balance': 1.0,
     #'balance_weights':  np.array([1, 20, 4, 40, 40], dtype=float),
-    'balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
-    'balance_ratio': 0.6,
-    'final_balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
+    'balance_weights':  np.array([1, 2.5, 1.8, 3.5, 4], dtype=float),
+    'balance_ratio': 0.0,
+    'final_balance_weights':  np.array([1, 2.5, 1.8, 3.5, 4], dtype=float),
     'aug_params': {
         'zoom_range': (1 / 1.4, 1.4),
         'rotation_range': (0, 360),
@@ -35,9 +35,10 @@ cnf = {
     'color': True,
     'sigma': 0.1,
     'schedule': {
-        0: 0.0001,
-        80: 0.00001,
-        100: 'stop',
+        0: 0.001,
+        20: 0.0001,
+        50: 0.00001,
+        70: 'stop',
     },
 }
 

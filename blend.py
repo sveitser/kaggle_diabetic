@@ -35,13 +35,14 @@ from nn import *
 START_MOM = 0.9
 STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.0005
+START_LR = 0.0002
 END_LR = START_LR * 0.001
-ALPHA = 0.005
+ALPHA = 0.0005
 N_ITER = 100
 PATIENCE = 20
 POWER = 0.5
-N_HIDDEN = 32
+N_HIDDEN_1 = 32
+N_HIDDEN_2 = 32
 
 SCHEDULE = {
     'start': START_LR,
@@ -50,6 +51,10 @@ SCHEDULE = {
     N_ITER: 'stop'
 }
 
+RESAMPLE_WEIGHTS = [1.360, 14.37, 6.637, 40.23, 49.61]
+#RESAMPLE_WEIGHTS = [1, 3, 2, 4, 5]
+RESAMPLE_PROB = 0.1
+SHUFFLE_PROB = 0.4
 
 def epsilon_insensitive(y, t, d0=0.05, d1=0.5):
     #return T.maximum(epsilon**2.0, (y - t)**2.0) - epsilon ** 2.0
@@ -71,8 +76,13 @@ class ResampleIterator(BatchIterator):
     def __iter__(self):
         n_samples = self.X.shape[0]
         bs = self.batch_size
+        indices = util.balance_per_class_indices(self.y.ravel(), 
+                                                 weights=RESAMPLE_WEIGHTS)
         for i in range((n_samples + bs - 1) // bs):
-            if np.random.rand() < 0.2:
+            r = np.random.rand()
+            if r < RESAMPLE_PROB:
+                sl = indices[np.random.randint(0, n_samples, size=bs)]
+            elif r < SHUFFLE_PROB:
                 sl = np.random.randint(0, n_samples, size=bs)
             else:
                 sl = slice(i * bs, (i + 1) * bs)
@@ -155,13 +165,14 @@ def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.8}),
-        (DenseLayer, {'num_units': N_HIDDEN, 'nonlinearity': leaky_rectify,
+        (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
+        #(FeaturePoolLayer, {'pool_size': 2}),
         #(DropoutLayer, {'p': 0.5}),
-        #(FeaturePoolLayer, {'pool_size': 2}),
-        (DenseLayer, {'num_units': N_HIDDEN, 'nonlinearity': leaky_rectify,
+        (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(FeaturePoolLayer, {'pool_size': 2}),
+        #(DropoutLayer, {'p': 0.5}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify,
         #              'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(DropoutLayer, {'p': 0.5}),
@@ -228,7 +239,8 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
     if per_patient:
         X_train = per_patient_reshape(X_train) 
-        X_train = scaler.fit_transform(X_train).astype(np.float32) 
+
+    X_train = scaler.fit_transform(X_train).astype(np.float32) 
         
 
     if predict:
