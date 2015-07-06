@@ -515,6 +515,9 @@ class Net(NeuralNet):
                 if not np.isfinite(batch_train_loss[0]):
                     raise ValueError("non finite loss")
 
+                if epoch == 1:
+                    print('loss {}'.format(batch_train_loss[0]))
+
                 #print('iter took {:.4f} s'.format(time() - toc))
                 toc = time()
                 train_losses.append(batch_train_loss)

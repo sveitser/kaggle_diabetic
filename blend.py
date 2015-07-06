@@ -35,9 +35,9 @@ from nn import *
 START_MOM = 0.9
 STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.0002
+START_LR = 0.0005
 END_LR = START_LR * 0.001
-ALPHA = 0.0005
+ALPHA = 0.001
 N_ITER = 100
 PATIENCE = 20
 POWER = 0.5
@@ -54,7 +54,7 @@ SCHEDULE = {
 RESAMPLE_WEIGHTS = [1.360, 14.37, 6.637, 40.23, 49.61]
 #RESAMPLE_WEIGHTS = [1, 3, 2, 4, 5]
 RESAMPLE_PROB = 0.1
-SHUFFLE_PROB = 0.4
+SHUFFLE_PROB = 0.1
 
 def epsilon_insensitive(y, t, d0=0.05, d1=0.5):
     #return T.maximum(epsilon**2.0, (y - t)**2.0) - epsilon ** 2.0
