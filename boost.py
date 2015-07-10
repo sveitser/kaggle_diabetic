@@ -213,7 +213,7 @@ def average_thresholds(thresholds):
 
 
 @click.command()
-@click.option('--cnf', default='config/large.py',
+@click.option('--cnf', default='config/c_768_4x4_very.py',
               help="Path or name of configuration module.")
 @click.option('--predict', is_flag=True, default=False)
 @click.option('--grid_search', is_flag=True, default=False)

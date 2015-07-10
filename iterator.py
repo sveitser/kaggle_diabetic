@@ -24,7 +24,7 @@ shared_dict = manager.dict()
 
 shared_array_name = str(uuid4())
 shared_array = SharedArray.create(shared_array_name, 
-                                  [128, 3, 448, 448], dtype=np.float32)
+                                  [128, 3, 672, 672], dtype=np.float32)
 warnings.warn("created shared memory array {}".format(shared_array_name))
 
 def delete_shared_array():

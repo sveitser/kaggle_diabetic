@@ -19,6 +19,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from nolearn.lasagne import NeuralNet
 from lasagne.updates import *
+from lasagne.layers import get_all_layers
 
 from ordinal_classifier import OrdinalClassifier
 import iterator, nn, util
@@ -33,12 +34,13 @@ from nn import *
 #MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
 START_MOM = 0.9
-STOP_MOM = 0.95
+STOP_MOM = 0.9
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.0005
+START_LR = 0.0004
 END_LR = START_LR * 0.001
-ALPHA = 0.001
-N_ITER = 100
+L1 = 0.002
+L2 = 0.002
+N_ITER = 200
 PATIENCE = 20
 POWER = 0.5
 N_HIDDEN_1 = 32
@@ -46,8 +48,8 @@ N_HIDDEN_2 = 32
 
 SCHEDULE = {
     'start': START_LR,
-    60: START_LR / 10.0,
-    80: START_LR / 100.0,
+    120: START_LR / 10.0,
+    160: START_LR / 100.0,
     N_ITER: 'stop'
 }
 
@@ -55,6 +57,27 @@ RESAMPLE_WEIGHTS = [1.360, 14.37, 6.637, 40.23, 49.61]
 #RESAMPLE_WEIGHTS = [1, 3, 2, 4, 5]
 RESAMPLE_PROB = 0.1
 SHUFFLE_PROB = 0.1
+
+def get_objective(l1=L1, l2=L2):
+    class RegularizedObjective(Objective):
+
+        def get_loss(self, input=None, target=None, aggregation=None,
+                     deterministic=False, **kwargs):
+
+            l1_layer = get_all_layers(self.input_layer)[1]
+
+            loss = super(RegularizedObjective, self).get_loss(
+                input=input, target=target, aggregation=aggregation,
+                deterministic=deterministic, **kwargs)
+            if not deterministic:
+                return loss \
+                    + l1 * lasagne.regularization.regularize_layer_params(
+                        l1_layer, lasagne.regularization.l1) \
+                    + l2 * lasagne.regularization.regularize_network_params(
+                        self.input_layer, lasagne.regularization.l2)
+            else:
+                return loss
+    return RegularizedObjective
 
 def epsilon_insensitive(y, t, d0=0.05, d1=0.5):
     #return T.maximum(epsilon**2.0, (y - t)**2.0) - epsilon ** 2.0
@@ -112,22 +135,6 @@ class ShuffleIterator(ShufflingBatchIteratorMixin, BatchIterator):
     pass
 
 
-class RegularizedObjective(Objective):
-
-    def get_loss(self, input=None, target=None, aggregation=None,
-                 deterministic=False, **kwargs):
-
-        loss = super(RegularizedObjective, self).get_loss(
-            input=input, target=target, aggregation=aggregation,
-            deterministic=deterministic, **kwargs)
-        if not deterministic:
-            return loss \
-                + ALPHA * lasagne.regularization.regularize_network_params(
-                    self.input_layer, lasagne.regularization.l2)
-        else:
-            return loss
-
-
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
         self.name = name
@@ -165,11 +172,11 @@ def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.8}),
-        (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': leaky_rectify,
+        (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': very_leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(FeaturePoolLayer, {'pool_size': 2}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': leaky_rectify,
+        (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': very_leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         #(FeaturePoolLayer, {'pool_size': 2}),
         #(DropoutLayer, {'p': 0.5}),
@@ -194,7 +201,7 @@ def get_estimator(n_features, **kwargs):
         #batch_iterator_train=ShuffleIterator(128),
         batch_iterator_train=ResampleIterator(128),
 
-        objective=RegularizedObjective,
+        objective=get_objective(),
         #objective_loss_function=epsilon_insensitive,
 
         eval_size=0.1,
@@ -219,7 +226,7 @@ def get_estimator(n_features, **kwargs):
     return Net(l, **args)
 
 @click.command()
-@click.option('--cnf', default='config/large.py',
+@click.option('--cnf', default='config/c_768_4x4_very.py',
               help="Path or name of configuration module.")
 @click.option('--predict', is_flag=True, default=False)
 @click.option('--grid_search', is_flag=True, default=False)

@@ -4,8 +4,8 @@ LABEL_FILE = 'data/trainLabels.csv'
 PSEUDO_LABEL_FILE = 'data/testLabels.csv'
 MEAN_FILE = 'data/mean.npy'
 
-TRAIN_DIR = 'data/train_res'
-TEST_DIR = 'data/test_res'
+TRAIN_DIR = 'data/train_large'
+TEST_DIR = 'data/test_large'
 
 # cache files for neural net feature extraction
 TRAIN_FEATURES = 'data/X_train.npy'

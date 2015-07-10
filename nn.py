@@ -50,7 +50,7 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
             SaveWeights(model.weights_best, every_n_epochs=1, only_best=True),
             SaveBestWeights(),
         ],
-        'objective': RegularizedObjective,
+        'objective': get_l2_objective(model.get('weight_decay', 0.0005)),
         #'objective_loss_function': ordinal_loss if model.get('ordinal', False) \
         #                                     else mse,
         'use_label_encoder': False,
@@ -93,20 +93,40 @@ def float32(k):
 #    return sum((T.std(p) / T.max(abs(p)) for p in all_params))
 
 
-class RegularizedObjective(Objective):
+def get_l2_objective(alpha=0.0005):
+    class RegularizedObjective(Objective):
 
-    def get_loss(self, input=None, target=None, aggregation=None,
-                 deterministic=False, **kwargs):
+        def get_loss(self, input=None, target=None, aggregation=None,
+                     deterministic=False, **kwargs):
 
-        loss = super(RegularizedObjective, self).get_loss(
-            input=input, target=target, aggregation=aggregation,
-            deterministic=deterministic, **kwargs)
-        if not deterministic:
-            return loss \
-                + 0.0005 * lasagne.regularization.regularize_network_params(
-                    self.input_layer, lasagne.regularization.l2)
-        else:
-            return loss
+            loss = super(RegularizedObjective, self).get_loss(
+                input=input, target=target, aggregation=aggregation,
+                deterministic=deterministic, **kwargs)
+            if not deterministic:
+                return loss \
+                    + alpha * lasagne.regularization.regularize_network_params(
+                        self.input_layer, lasagne.regularization.l2)
+            else:
+                return loss
+    return RegularizedObjective
+
+
+def get_l1_objective(l1=0.0005):
+    class RegularizedObjective(Objective):
+
+        def get_loss(self, input=None, target=None, aggregation=None,
+                     deterministic=False, **kwargs):
+
+            loss = super(RegularizedObjective, self).get_loss(
+                input=input, target=target, aggregation=aggregation,
+                deterministic=deterministic, **kwargs)
+            if not deterministic:
+                return loss \
+                    + l1 * lasagne.regularization.regularize_network_params(
+                        self.input_layer, lasagne.regularization.l1)
+            else:
+                return loss
+    return RegularizedObjective
 
 
 class AdjustVariable(object):
@@ -515,8 +535,8 @@ class Net(NeuralNet):
                 if not np.isfinite(batch_train_loss[0]):
                     raise ValueError("non finite loss")
 
-                if epoch == 1:
-                    print('loss {}'.format(batch_train_loss[0]))
+                #if epoch == 1:
+                #    print('train loss {}'.format(batch_train_loss[0]))
 
                 #print('iter took {:.4f} s'.format(time() - toc))
                 toc = time()
