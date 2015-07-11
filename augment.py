@@ -49,7 +49,7 @@ def rot90(img, n=None):
     return np.rot90(img.transpose(1, 2, 0), k=n).transpose(2, 0, 1)
 
 
-def flip(img, n=None)
+def flip(img, n=None):
     n = np.randint(4) if n is None else n
     if n == 1:
         img = img[:, ::-1,  :]

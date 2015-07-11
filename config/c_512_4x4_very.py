@@ -35,7 +35,7 @@ cnf = {
     },
     'weight_decay': 0.0005,
     'color': True,
-    'sigma': 0.2,
+    'sigma': 0.1,
     'schedule': {
         #0: 0.0025,
         #150: 0.00025,
