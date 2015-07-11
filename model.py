@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 import pprint
 import os
@@ -10,7 +11,7 @@ from definitions import *
 
 def mkdir(path):
     try:
-        os.mkdir(path)
+        os.makedirs(path)
     except OSError:
         pass
 
@@ -25,8 +26,9 @@ class Model(object):
 
 
     def setup(self, cnf):
-        cnf['mean'] = cnf.get('mean', MEAN)
-        cnf['std'] = cnf.get('std', STD)
+        cnf = deepcopy(cnf)
+        cnf['mean'] = np.array(cnf.get('mean', MEAN), dtype=np.float32)
+        cnf['std'] = np.array(cnf.get('std', STD), dtype=np.float32)
         self.cnf = cnf
 
     def load(self, fname, *args, **kwargs):
@@ -44,14 +46,34 @@ class Model(object):
         return self.cnf.get(k, default)
 
     @property
+    def weights_epoch(self):
+        path = "weights/{}/epochs".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, '{epoch}_{timestamp}_{loss}.pkl')
+
+    @property
+    def weights_best(self):
+        path = "weights/{}/best".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, '{epoch}_{timestamp}_{loss}.pkl')
+
+    @property
     def weights_file(self):
-        mkdir('weights')
-        return "weights/weights_{}.pickle".format(self.cnf['name'])
+        path = "weights/{}".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, 'weights.pkl')
 
     @property
     def retrain_weights_file(self):
-        mkdir('weights')
-        return "weights/weights_retrain_{}.pickle".format(self.cnf['name'])
+        path = "weights/{}/retrain".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, 'weights.pkl')
+
+    @property
+    def final_weights_file(self):
+        path = "weights/{}".format(self.cnf['name'])
+        mkdir(path)
+        return os.path.join(path, 'weights_final.pkl')
 
     @property
     def logfile(self):
@@ -60,7 +82,13 @@ class Model(object):
         return 'log/{}_{}.log'.format(self.get('name'), t)
 
     def get_transform_fname(self, n_iter, test=False):
-        fname = '{}_{}_iter_{}.npy'.format(self.cnf['name'], 
+        fname = '{}_{}_mean_iter_{}.npy'.format(self.cnf['name'], 
+                                          ('test' if test else 'train'), 
+                                          n_iter)
+        return os.path.join(TRANSFORM_DIR, fname)
+
+    def get_std_fname(self, n_iter, test=False):
+        fname = '{}_{}_std_iter_{}.npy'.format(self.cnf['name'], 
                                           ('test' if test else 'train'), 
                                           n_iter)
         return os.path.join(TRANSFORM_DIR, fname)
@@ -68,6 +96,10 @@ class Model(object):
     def save_transform(self, X, n_iter, test=False):
         mkdir(TRANSFORM_DIR)
         np.save(open(self.get_transform_fname(n_iter, test=test), 'wb'), X)
+
+    def save_std(self, X, n_iter, test=False):
+        mkdir(TRANSFORM_DIR)
+        np.save(open(self.get_std_fname(n_iter, test=test), 'wb'), X)
 
     def load_transform(self, test=False):
         return np.load(open(self.get_transform_fname(test=test)))

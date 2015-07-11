@@ -9,7 +9,7 @@ cnf = {
     'train_dir': 'data/train_medium',
     'test_dir': 'data/test_medium',
     'batch_size_train': 48,
-    'batch_size_test': 16,
+    'batch_size_test': 8,
     #'mean': [112.26],
     #'std': [26.63],
     'mean': [ 108.73683167, 75.54026794,  53.80962753],
@@ -21,7 +21,6 @@ cnf = {
     'rotate': True,
     'balance': 1.0,
     'balance_weights':  np.array([1, 20, 4, 40, 40], dtype=float),
-    #'balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
     'balance_ratio': 0.9,
     'final_balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
     'aug_params': {
@@ -34,39 +33,46 @@ cnf = {
     },
     'color': True,
     'sigma': 0.1,
+    'schedule': {
+        0: 0.003,
+        100: 0.0003,
+        130: 0.00003,
+        150: 'stop',
+    },
 }
+
+def cp(num_filters, *args, **kwargs):
+    args = {
+        'num_filters': num_filters,
+        'filter_size': (3, 3),
+        'nonlinearity': very_leaky_rectify,
+    }
+    args.update(kwargs)
+    return conv_params(**args)
+
 
 layers = [
     (InputLayer, {'shape': (cnf['batch_size_train'], C, cnf['w'], cnf['h'])}),
-    (Conv2DLayer, conv_params(32, filter_size=(5, 5), stride=(2, 2))),
-    (Conv2DLayer, conv_params(32, filter_size=(5, 5))),
+    (Conv2DLayer, cp(24, filter_size=(4, 4), stride=(2, 2))),
+    (Conv2DLayer, cp(24)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, conv_params(64, stride=(2, 2))),
-    (Conv2DLayer, conv_params(64)),
+    (Conv2DLayer, cp(48, filter_size=(4, 4), stride=(2, 2))),
+    (Conv2DLayer, cp(48)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, conv_params(128)),
-    (Conv2DLayer, conv_params(128)),
-    (Conv2DLayer, conv_params(128)),
-    (Conv2DLayer, conv_params(128)),
+    (Conv2DLayer, cp(96)),
+    (Conv2DLayer, cp(96)),
+    (Conv2DLayer, cp(96)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, conv_params(256)),
-    (Conv2DLayer, conv_params(256)),
-    (Conv2DLayer, conv_params(256)),
-    (Conv2DLayer, conv_params(256)),
+    (Conv2DLayer, cp(192)),
+    (Conv2DLayer, cp(192)),
+    (Conv2DLayer, cp(192)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, conv_params(512)),
-    #(Conv2DLayer, conv_params(384)),
-    #(Conv2DLayer, conv_params(384)),
-    (RMSPoolLayer, pool_params(stride=(2, 2))), # pad to get even x/y
+    (Conv2DLayer, cp(384)),
+    (RMSPoolLayer, pool_params(pool_size=(3, 3), stride=(2, 2))), # pad to get even x/y
+    #(Conv2DLayer, cp(512)),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': 512}),
-    (FeaturePoolLayer, {'pool_size': 2}),
-    (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': 512}),
-    (FeaturePoolLayer, {'pool_size': 2}),
     (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
-                         'nonlinearity': rectify if REGRESSION else softmax}),
+                  'nonlinearity': None if REGRESSION else softmax}),
 ]
-
 
 model = Model(layers=layers, cnf=cnf)

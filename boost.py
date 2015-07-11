@@ -12,8 +12,6 @@ from sklearn.grid_search import GridSearchCV
 from xgboost import XGBRegressor, XGBClassifier
 from scipy.optimize import minimize
 
-from lightning.ranking import PRank, KernelPRank
-
 from sklearn import linear_model
 from sklearn.ensemble import *
 from sklearn.svm import *
@@ -48,7 +46,7 @@ def get_xgb(**kwargs):
         'subsample': 0.5,
         'colsample_bytree': 0.02,
         'learning_rate': 0.08,
-        'seed': 1,
+        'seed': 99,
         'n_estimators': 120,
         'max_depth': 3,
         #'silent': False,
@@ -215,7 +213,7 @@ def average_thresholds(thresholds):
 
 
 @click.command()
-@click.option('--cnf', default='config/large.py',
+@click.option('--cnf', default='config/c_768_4x4_very.py',
               help="Path or name of configuration module.")
 @click.option('--predict', is_flag=True, default=False)
 @click.option('--grid_search', is_flag=True, default=False)
@@ -280,7 +278,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
             for i in range(n_iter):
                 print('iter {}'.format(i))
                 print('fitting split training set')
-                est, _ = get_estimator(seed=i * 10 + 1)
+                est, _ = get_estimator(seed=i * 10 + 99)
                 est.fit(X_train[tr], labels[tr])
                 y_pred = est.predict(X_train[te])
                 y_preds.append(y_pred)

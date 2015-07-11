@@ -4,8 +4,9 @@ LABEL_FILE = 'data/trainLabels.csv'
 PSEUDO_LABEL_FILE = 'data/testLabels.csv'
 MEAN_FILE = 'data/mean.npy'
 
-TRAIN_DIR = 'data/train_res'
-TEST_DIR = 'data/test_res'
+TRAIN_DIR = 'data/train_medium' 
+#TRAIN_DIR = '/data/kaggle/diabetic/train_medium' #TODO remove
+TEST_DIR = 'data/test_medium'
 
 # cache files for neural net feature extraction
 TRAIN_FEATURES = 'data/X_train.npy'
@@ -49,7 +50,10 @@ SIGMA_COLOR = 0.2
 #                      [0.55659384, -0.33153433, -0.76176667],
 #                      [0.27443382, -0.79208136, 0.54524601]])
 
-CLASS_WEIGHTS = [1, 10, 3, 5, 5]
+#CLASS_WEIGHTS = [1, 2.5, 1.8, 3.5, 4]
+#CLASS_WEIGHTS = [1, 10, 3, 5, 5]
+CLASS_WEIGHTS = [1.3609453700116234,  14.378223495702006, 6.637566137566138,
+                 40.235967926689575, 49.612994350282484]
 
 # number of class samples in training set
 #CLASSES = [25810, 5292, 2443, 873, 708]

@@ -44,6 +44,22 @@ def augment(Xb):
     return np.array([crop_random(img) for img in Xb], dtype=np.float32)
 
 
+def rot90(img, n=None):
+    n = np.randint(4) if n is None else n
+    return np.rot90(img.transpose(1, 2, 0), k=n).transpose(2, 0, 1)
+
+
+def flip(img, n=None)
+    n = np.randint(4) if n is None else n
+    if n == 1:
+        img = img[:, ::-1,  :]
+    elif n == 2:
+        img = img[:, :, ::-1]
+    elif n == 3:
+        img = img[:, ::-1, ::-1]
+    return img
+
+
 default_augmentation_params = {
     'zoom_range': (1 / 1.1, 1.1),
     'rotation_range': (0, 360),
@@ -73,8 +89,8 @@ no_augmentation_params_gaussian = {
     'stretch_std': 0.0,
 }
 
-
-def fast_warp(img, tf, output_shape=(W, H), mode='constant', order=1):
+# timings for in 512px out 448px: order=0: 19.8ms, 26ms
+def fast_warp(img, tf, output_shape=(W, H), mode='constant', order=0):
     """
     This wrapper function is faster than skimage.transform.warp
     """
@@ -204,7 +220,7 @@ def perturb(img, augmentation_params=default_augmentation_params,
     tform_augment = tform_uncenter + tform_augment + tform_center # shift to center, augment, shift back (for the rotation/shearing)
     return fast_warp(img, tform_centering + tform_augment, 
                      output_shape=target_shape, 
-                     mode='constant').astype('float32')
+                     mode='constant')
 
 
 # for test-time augmentation
@@ -213,15 +229,19 @@ def perturb_fixed(img, tform_augment, target_shape=(50, 50)):
     tform_centering = build_centering_transform(shape, target_shape)
     tform_center, tform_uncenter = build_center_uncenter_transforms(shape)
     tform_augment = tform_uncenter + tform_augment + tform_center # shift to center, augment, shift back (for the rotation/shearing)
-    return fast_warp(img, tform_centering + tform_augment, output_shape=target_shape, mode='constant').astype('float32')
+    return fast_warp(img, tform_centering + tform_augment,
+                     output_shape=target_shape, mode='constant')
 
 
 def load_perturbed(fname):
-    img = util.load_image_uint_one(fname).astype(np.float32) / 255.0
-    return perturb(img) * 255
+    img = util.load_image_uint_one(fname).astype(np.float32)
+    return perturb(img)
 
-def augment_color(img, sigma=0.1):
-    alpha = np.random.normal(0.0, sigma, 3).astype(np.float32) * EV
+def augment_color(img, sigma=0.1, color_vec=None):
+    if color_vec is None:
+        color_vec = np.random.normal(0.0, sigma, 3)
+    
+    alpha = color_vec.astype(np.float32) * EV
     noise = np.dot(U, alpha.T)
     return img + noise[:, np.newaxis, np.newaxis]
 
@@ -236,26 +256,23 @@ def load(fname, *args, **kwargs):
     elif kwargs.get('rotate') is True:
         aug_params = kwargs.get('aug_params', default_augmentation_params)
         if kwargs.get('transform') is None:
-            img = perturb(img / 255.0, augmentation_params=aug_params,
-                          target_shape=(w, h)) * 255.0
+            img = perturb(img, augmentation_params=aug_params,
+                          target_shape=(w, h))
         else:
-            img = perturb_fixed(img / 255.0, tform_augment=kwargs['transform'], 
-                            target_shape=(w, h)).astype('float32') * 255.0
+            img = perturb_fixed(img, tform_augment=kwargs['transform'], 
+                            target_shape=(w, h))
     else:
         img = crop_random(img, w=w, h=h)
 
     #t2 = time.time()
     #print('load crop took {}'.format(t2 - tin))
-    np.subtract(img, np.array(kwargs['mean'], dtype=np.float32)[:, np.newaxis, 
-                                                                np.newaxis],
-                out=img)
-    np.divide(img, np.array(kwargs['std'], dtype=np.float32)[:, np.newaxis, 
-                                                             np.newaxis],
-              out=img)
+    np.subtract(img, kwargs['mean'][:, np.newaxis, np.newaxis], out=img)
+    np.divide(img, kwargs['std'][:, np.newaxis, np.newaxis], out=img)
 
     if not kwargs.get('deterministic') and kwargs.get('color') is True:
-        img = augment_color(img, sigma=kwargs.get('sigma', SIGMA_COLOR))
+        img = augment_color(img, sigma=kwargs.get('sigma', SIGMA_COLOR),
+                            color_vec=kwargs.get('color_vec', None))
 
     #np.divide(img, 128.0, out=img)
     #print('normalize took {}'.format(time.time() - t2))
-    return img.copy()
+    return img

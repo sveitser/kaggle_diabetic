@@ -3,9 +3,10 @@ from layers import *
 from model import Model
 
 cnf = {
-    'name': '512_4x4',
+    'name': __name__.split('.')[-1],
     'w': 448,
     'h': 448,
+    #'train_dir': '/data/kaggle/diabetic/train_medium', #TODO FIX
     'train_dir': 'data/train_medium',
     'test_dir': 'data/test_medium',
     'batch_size_train': 80,
@@ -20,22 +21,28 @@ cnf = {
     #'n_classes': 3,
     'rotate': True,
     'balance': 1.0,
-    'balance_weights':  np.array([1, 2.5, 1.8, 3.5, 4], dtype=float),
-    'balance_ratio': 0.0,
-    'final_balance_weights':  np.array([1, 2.5, 1.8, 3.5, 4], dtype=float),
+    'balance_weights':  np.array([1, 2, 2, 3, 3.5], dtype=float),
+    #'balance_weights': np.array(CLASS_WEIGHTS),
+    'balance_ratio': 0.97,
+    'final_balance_weights':  np.array([1, 2, 2, 3, 3.5], dtype=float),
     'aug_params': {
-        'zoom_range': (1 / 1.4, 1.4),
+        'zoom_range': (1 / 1.1, 1.1),
         'rotation_range': (0, 360),
         'shear_range': (0, 0),
         'translation_range': (-40, 40),
         'do_flip': True,
         'allow_stretch': True,
     },
+    'weight_decay': 0.0005,
     'color': True,
-    'sigma': 0.1,
+    'sigma': 0.2,
     'schedule': {
-        0: 0.0001,
-        50: 0.00001,
+        #0: 0.0025,
+        #150: 0.00025,
+        #200: 0.000025,
+        #250: 'stop',
+        0: 0.00025,
+        50: 0.000025,
         70: 'stop',
     },
 }
@@ -44,7 +51,7 @@ def cp(num_filters, *args, **kwargs):
     args = {
         'num_filters': num_filters,
         'filter_size': (4, 4),
-        #'untie_biases': False,
+        'nonlinearity': very_leaky_rectify,
     }
     args.update(kwargs)
     return conv_params(**args)
@@ -73,10 +80,10 @@ layers = [
     #(Conv2DLayer, cp(384, border_mode=None, pad=2)),
     (RMSPoolLayer, pool_params(pool_size=(3, 3), stride=(2, 2))), # pad to get even x/y
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': 1024}),
+    (DenseLayer, dense_params(1024)),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': 1024}),
+    (DenseLayer, dense_params(1024)),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
                          'nonlinearity': rectify if REGRESSION else softmax}),

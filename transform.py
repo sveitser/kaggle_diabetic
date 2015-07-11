@@ -4,11 +4,14 @@ import importlib
 import click
 import numpy as np
 
-import util
-import nn
+import theano.sandbox.cuda
+#theano.sandbox.cuda.use("gpu1") # doesn't seem to work when set here
+#import theano
+
+import nn, util, iterator
 
 from definitions import *
-from tta import build_quasirandom_transforms
+import tta
 
 @click.command()
 @click.option('--cnf', default='config/best.py',
@@ -29,7 +32,12 @@ def transform(cnf, n_iter, test, train, weights_from):
     if test:
         runs['test'] = model.get('test_dir', TEST_DIR)
 
-    model.cnf['batch_size_test'] = 32
+    model.cnf['batch_size_test'] = 64
+
+    # reduced augmentation for TTA
+    #model.cnf['sigma'] = 0.02
+    #model.cnf['aug_params']['zoom_range'] = (1.0 / 1.2, 1.2)
+    #model.cnf['aug_params']['translation_range'] = (20, 20)
 
     net = nn.create_net(model, tta=True if n_iter > 1 else False)
 
@@ -41,7 +49,8 @@ def transform(cnf, n_iter, test, train, weights_from):
         net.load_params_from(weights_from)
         print("loaded weights from {}".format(weights_from))
 
-    tfs = build_quasirandom_transforms(n_iter, **model.cnf['aug_params'])
+    tfs, color_vecs = tta.build_quasirandom_transforms(
+            n_iter, model.cnf['sigma'], **model.cnf['aug_params'])
 
     for run, directory in sorted(runs.items(), reverse=True):
 
@@ -49,21 +58,30 @@ def transform(cnf, n_iter, test, train, weights_from):
 
         files = util.get_image_files(directory)
 
-        X_t = None
+        Xs, Xs2 = None, None
 
-        for i, tf in enumerate(tfs):
+        for i, (tf, color_vec) in enumerate(zip(tfs, color_vecs), start=1):
 
-            print("{} transform iter {}".format(run, i + 1))
+            print("{} transform iter {}".format(run, i))
 
-            if X_t is None:
-                X_t = net.transform(files, transform=tf)
+            X = net.transform(files, transform=tf, color_vec=color_vec)
+            if Xs is None:
+                Xs = X
+                Xs2 = X**2
             else:
-                X_t += net.transform(files, transform=tf)
+                Xs += X
+                Xs2 += X**2
 
-            if i % 5 == 4 or n_iter <= 5:
-                model.save_transform(X_t / (n_iter + 1), i + 1,
+            if i % 5 == 0 or n_iter < 5:
+                std = np.sqrt((Xs2 - Xs**2 / i) / (i - 1))
+                model.save_transform(Xs / i, i,
                                      test=True if run == 'test' else False)
-                print('saved {} iterations'.format(i + 1))
+                model.save_std(std, i,
+                               test=True if run == 'test' else False)
+                print('saved {} iterations'.format(i))
 
 if __name__ == '__main__':
-    transform()
+    try:
+        transform()
+    finally:
+        iterator.delete_shared_array()
