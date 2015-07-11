@@ -39,11 +39,6 @@ def transform(cnf, n_iter, test, train, weights_from):
     #model.cnf['aug_params']['zoom_range'] = (1.0 / 1.2, 1.2)
     #model.cnf['aug_params']['translation_range'] = (20, 20)
 
-    # only rotation tta
-    #model.cnf['color'] = False
-    #model.cnf['aug_params']['zoom_range'] = (1.0, 1.0)
-    #model.cnf['aug_params']['translation_range'] = (0, 0)
-
     net = nn.create_net(model, tta=True if n_iter > 1 else False)
 
     if weights_from is None:
@@ -54,8 +49,8 @@ def transform(cnf, n_iter, test, train, weights_from):
         net.load_params_from(weights_from)
         print("loaded weights from {}".format(weights_from))
 
-    tfs = tta.build_quasirandom_transforms(n_iter, **model.cnf['aug_params'])
-    color_vecs = tta.build_color_tta(n_iter, model.cnf['sigma'])
+    tfs, color_vecs = tta.build_quasirandom_transforms(
+            n_iter, model.cnf['sigma'], **model.cnf['aug_params'])
 
     for run, directory in sorted(runs.items(), reverse=True):
 

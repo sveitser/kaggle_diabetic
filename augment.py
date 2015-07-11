@@ -44,6 +44,22 @@ def augment(Xb):
     return np.array([crop_random(img) for img in Xb], dtype=np.float32)
 
 
+def rot90(img, n=None):
+    n = np.randint(4) if n is None else n
+    return np.rot90(img.transpose(1, 2, 0), k=n).transpose(2, 0, 1)
+
+
+def flip(img, n=None)
+    n = np.randint(4) if n is None else n
+    if n == 1:
+        img = img[:, ::-1,  :]
+    elif n == 2:
+        img = img[:, :, ::-1]
+    elif n == 3:
+        img = img[:, ::-1, ::-1]
+    return img
+
+
 default_augmentation_params = {
     'zoom_range': (1 / 1.1, 1.1),
     'rotation_range': (0, 360),

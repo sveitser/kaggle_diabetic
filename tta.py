@@ -35,15 +35,13 @@ def build_transforms(**kwargs):
 def build_color_tta(num_transforms, sigma):
     gen = ghalton.Halton(3)
     uniform_samples = np.array(gen.get(num_transforms))
-    return [np.array([icdf.normal(r, avg=0.0, std=sigma) for r in s], 
-                      dtype=np.float32) for s in uniform_samples]
 
 
-def build_quasirandom_transforms(num_transforms, zoom_range, 
+def build_quasirandom_transforms(num_transforms, sigma, zoom_range, 
                                  rotation_range, shear_range, 
                                  translation_range, do_flip=True, 
                                  allow_stretch=False):
-    gen = ghalton.Halton(8)  # 7 dimensions to sample along
+    gen = ghalton.Halton(10)  # 7 dimensions to sample along
     uniform_samples = np.array(gen.get(num_transforms))
 
     tfs = []
@@ -77,5 +75,8 @@ def build_quasirandom_transforms(num_transforms, zoom_range,
         tfs.append(data.build_augmentation_transform((zoom_x, zoom_y),
                    rotation, shear, translation, flip))
 
+    color_vecs = [np.array([icdf.normal(r, avg=0.0, std=sigma) 
+                            for r in s[-3:]], dtype=np.float32) 
+                  for s in uniform_samples]
 
-    return tfs
+    return tfs, color_vecs

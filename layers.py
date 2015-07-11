@@ -73,6 +73,10 @@ def pool_params(pool_size=3, stride=(2, 2), **kwargs):
     args.update(kwargs)
     return args
 
+def dense_params(num_units):
+    return {'num_units': num_units, 'nonlinearity': very_leaky_rectify,
+            'W': init.Orthogonal(1.0), 'b': init.Constant(0.05)}
+
 # from https://github.com/benanne/kaggle-ndsb/blob/master/tmp_dnn.py
 class RMSPoolLayer(Pool2DLayer):
     def __init__(self, incoming, pool_size, stride=None, pad=(0, 0), 

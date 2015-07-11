@@ -4,8 +4,9 @@ LABEL_FILE = 'data/trainLabels.csv'
 PSEUDO_LABEL_FILE = 'data/testLabels.csv'
 MEAN_FILE = 'data/mean.npy'
 
-TRAIN_DIR = 'data/train_large'
-TEST_DIR = 'data/test_large'
+TRAIN_DIR = 'data/train_medium' 
+#TRAIN_DIR = '/data/kaggle/diabetic/train_medium' #TODO remove
+TEST_DIR = 'data/test_medium'
 
 # cache files for neural net feature extraction
 TRAIN_FEATURES = 'data/X_train.npy'

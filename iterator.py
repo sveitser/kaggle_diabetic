@@ -23,8 +23,9 @@ manager = multiprocessing.Manager()
 shared_dict = manager.dict()
 
 shared_array_name = str(uuid4())
+SIZE = 448
 shared_array = SharedArray.create(shared_array_name, 
-                                  [128, 3, 672, 672], dtype=np.float32)
+                                  [128, 3, SIZE, SIZE], dtype=np.float32)
 warnings.warn("created shared memory array {}".format(shared_array_name))
 
 def delete_shared_array():
@@ -130,7 +131,7 @@ class ThreadIterator(QueueIterator):
         args = []
         for i, fname in enumerate(fnames):
             kwargs = self.model.cnf.copy()
-            kwargs['transform'] = transform
+            kwargs['transform'] = self.tf
             kwargs.update(self._get_metata())
             args.append((fname, kwargs))
 
