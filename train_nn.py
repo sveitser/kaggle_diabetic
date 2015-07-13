@@ -88,8 +88,9 @@ def main(cnf, weights_from, retrain_until):
         quadratic_weighted_kappa(y_test, y_pred)))
 
 if __name__ == '__main__':
-    try:
-        main()
-    finally:
-        iterator.delete_shared_array()
+    #try:
+    #    main()
+    #finally:
+    #    iterator.delete_shared_array()
+    main()
 

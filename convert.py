@@ -18,6 +18,8 @@ from PIL import Image, ImageChops, ImageFilter
 import util
 from definitions import *
 
+N_PROC = 2
+
 def convert(fname, crop_size):
     img = Image.open(fname)
 
@@ -158,7 +160,7 @@ def main(directory, convert_directory, test, crop_size, extension, micro):
     # process in batches, sometimes weird things happen with Pool
     batchsize = 500
     batches = n // batchsize + 1
-    pool = Pool(8)
+    pool = Pool(N_PROC)
 
     args = []
 

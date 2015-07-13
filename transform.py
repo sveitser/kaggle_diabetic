@@ -1,5 +1,6 @@
 from __future__ import division
 import importlib
+import time
 
 import click
 import numpy as np
@@ -55,6 +56,7 @@ def transform(cnf, n_iter, test, train, weights_from):
     for run, directory in sorted(runs.items(), reverse=True):
 
         print("transforming {}".format(directory))
+        tic = time.time()
 
         files = util.get_image_files(directory)
 
@@ -72,6 +74,7 @@ def transform(cnf, n_iter, test, train, weights_from):
                 Xs += X
                 Xs2 += X**2
 
+            print('took {:6.1f}'.format(time.time() - tic))
             if i % 5 == 0 or n_iter < 5:
                 std = np.sqrt((Xs2 - Xs**2 / i) / (i - 1))
                 model.save_transform(Xs / i, i,
@@ -81,7 +84,4 @@ def transform(cnf, n_iter, test, train, weights_from):
                 print('saved {} iterations'.format(i))
 
 if __name__ == '__main__':
-    try:
-        transform()
-    finally:
-        iterator.delete_shared_array()
+    transform()

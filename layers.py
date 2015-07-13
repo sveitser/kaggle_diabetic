@@ -48,7 +48,7 @@ C2DNoStrideLayer = lasagne.layers.conv.Conv2DLayer
 #MaxPool2DLayer = lasagne.layers.cuda_convnet.MaxPool2DCCLayer
 
 def conv_params(num_filters, filter_size=(3, 3), border_mode='same',
-         nonlinearity=leaky_rectify, W=init.Orthogonal(gain=1.0),
+         nonlinearity=very_leaky_rectify, W=init.Orthogonal(gain=1.0),
          b=init.Constant(0.05), untie_biases=True, **kwargs):
     args = {
         'num_filters': num_filters,

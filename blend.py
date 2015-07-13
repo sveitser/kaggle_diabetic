@@ -39,12 +39,13 @@ STOP_MOM = 0.95
 START_LR = 0.0005
 END_LR = START_LR * 0.001
 L1 = 0.0005
-L2 = 0.0005
+L2 = 0.005
 N_ITER = 100
 PATIENCE = 20
 POWER = 0.5
-N_HIDDEN_1 = 32
-N_HIDDEN_2 = 32
+N_HIDDEN_1 = 128
+N_HIDDEN_2 = 128
+BATCH_SIZE = 128
 
 SCHEDULE = {
     'start': START_LR,
@@ -55,8 +56,8 @@ SCHEDULE = {
 
 RESAMPLE_WEIGHTS = [1.360, 14.37, 6.637, 40.23, 49.61]
 #RESAMPLE_WEIGHTS = [1, 3, 2, 4, 5]
-RESAMPLE_PROB = 0.1
-SHUFFLE_PROB = 0.1
+RESAMPLE_PROB = 0.05
+SHUFFLE_PROB = 0.05
 
 def get_objective(l1=L1, l2=L2):
     class RegularizedObjective(Objective):
@@ -174,11 +175,11 @@ def get_estimator(n_features, **kwargs):
         #(DropoutLayer, {'p': 0.8}),
         (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': very_leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
-        #(FeaturePoolLayer, {'pool_size': 2}),
+        (FeaturePoolLayer, {'pool_size': 2}),
         #(DropoutLayer, {'p': 0.5}),
         (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': very_leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
-        #(FeaturePoolLayer, {'pool_size': 2}),
+        (FeaturePoolLayer, {'pool_size': 2}),
         #(DropoutLayer, {'p': 0.5}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify,
         #              'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
@@ -191,15 +192,15 @@ def get_estimator(n_features, **kwargs):
     ]
     args = dict(
     
-        update=nesterov_momentum,
+        #update=nesterov_momentum,
+        update=adam,
         #update=rmsprop,
         #update=adadelta,
-
         update_learning_rate=theano.shared(float32(START_LR)),
-        update_momentum=theano.shared(float32(START_MOM)),
+        #update_momentum=theano.shared(float32(START_MOM)),
 
-        #batch_iterator_train=ShuffleIterator(128),
-        batch_iterator_train=ResampleIterator(128),
+        #batch_iterator_train=ShuffleIterator(BATCH_SIZE),
+        batch_iterator_train=ResampleIterator(BATCH_SIZE),
 
         objective=get_objective(),
         #objective_loss_function=epsilon_insensitive,
@@ -211,7 +212,7 @@ def get_estimator(n_features, **kwargs):
         on_epoch_finished = [
             #AdjustPower('update_learning_rate', start=START_LR),
             Schedule('update_learning_rate', SCHEDULE),
-            AdjustVariable('update_momentum', start=START_MOM, stop=STOP_MOM),
+            #AdjustVariable('update_momentum', start=START_MOM, stop=STOP_MOM),
             #AdjustPower('update_momentum', start=START_MOM, power=0.5),
             #AdjustLearningRate('update_learning_rate', loss='kappa', 
             #                   greater_is_better=True, patience=PATIENCE,
@@ -226,7 +227,7 @@ def get_estimator(n_features, **kwargs):
     return Net(l, **args)
 
 @click.command()
-@click.option('--cnf', default='config/c_768_4x4_very.py',
+@click.option('--cnf', default='config/c_512_4x4_very.py',
               help="Path or name of configuration module.")
 @click.option('--predict', is_flag=True, default=False)
 @click.option('--grid_search', is_flag=True, default=False)
@@ -325,7 +326,4 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
 
 if __name__ == '__main__':
-    try:
-        fit()
-    finally:
-        iterator.delete_shared_array()
+    fit()

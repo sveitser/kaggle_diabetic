@@ -28,7 +28,7 @@ from quadratic_weighted_kappa import quadratic_weighted_kappa
 import util
 from iterator import SingleIterator
 
-def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
+def create_net(model, tta=False, retrain_until=None, **kwargs):
     args = {
         'layers': model.layers,
         'batch_iterator_train': SingleIterator(
@@ -38,27 +38,28 @@ def create_net(model, tta=False, ordinal=False, retrain_until=None, **kwargs):
             model, batch_size=model.get('batch_size_test', BATCH_SIZE), 
             deterministic=False if tta else True, 
             resample=False),
-        'update': updates.nesterov_momentum,
-        'update_learning_rate': theano.shared(
-            float32(model.get('schedule')[0])),
-        'update_momentum': theano.shared(float32(INITIAL_MOMENTUM)),
         'on_epoch_finished': [
-            AdjustVariable('update_momentum', 
-                            start=model.get('momentum', INITIAL_MOMENTUM),
-                            stop=0.999),
+            #AdjustVariable('update_momentum', 
+            #                start=model.get('momentum', INITIAL_MOMENTUM),
+            #                stop=0.999),
             SaveWeights(model.weights_epoch, every_n_epochs=5),
             SaveWeights(model.weights_best, every_n_epochs=1, only_best=True),
             SaveBestWeights(),
         ],
         'objective': get_l2_objective(model.get('weight_decay', 0.0005)),
-        #'objective_loss_function': ordinal_loss if model.get('ordinal', False) \
-        #                                     else mse,
         'use_label_encoder': False,
         'eval_size': 0.1,
         'regression': model.get('regression', REGRESSION),
         'max_epochs': MAX_ITER,
         'verbose': 2,
+        'update_learning_rate': theano.shared(
+            float32(model.get('schedule')[0])),
     }
+    if model.get('update') == 'adam':
+        args['update'] = adam
+    else:
+        args['update'] = nesterov_momentum
+        args['update_momentum'] = theano.shared(float32(INITIAL_MOMENTUM))
 
     if retrain_until is not None:
         args['eval_size'] = 0.0

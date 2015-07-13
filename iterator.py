@@ -9,6 +9,7 @@ import numpy as np
 #from nolearn.lasagne import BatchIterator
 
 import SharedArray
+from joblib import Parallel, delayed
 
 import augment
 import util
@@ -22,15 +23,6 @@ N_PROC = 8
 manager = multiprocessing.Manager()
 shared_dict = manager.dict()
 
-shared_array_name = str(uuid4())
-SIZE = 448
-shared_array = SharedArray.create(shared_array_name, 
-                                  [128, 3, SIZE, SIZE], dtype=np.float32)
-warnings.warn("created shared memory array {}".format(shared_array_name))
-
-def delete_shared_array():
-    SharedArray.delete(shared_array_name)
-    print("deleted shared memory array {}".format(shared_array_name))
 
 def load_image(args):
     i, fname, kwargs = args
@@ -38,8 +30,9 @@ def load_image(args):
 
 
 def load_shared(args):
-    i, fname, kwargs = args
-    shared_array[i] = augment.load(fname, **kwargs)
+    i, array_name, fname, kwargs = args
+    array = SharedArray.attach(array_name)
+    array[i] = augment.load(fname, **kwargs)
 
 
 class Consumer(multiprocessing.Process):
@@ -116,7 +109,6 @@ class QueueIterator(BatchIterator):
             queue.task_done()
             item = queue.get()
 
-from joblib import Parallel, delayed
 
 class ThreadIterator(QueueIterator):
     def __init__(self, model, *args, **kwargs):
@@ -156,20 +148,30 @@ class SharedIterator(QueueIterator):
     def _get_metata(self):
         raise NotImplementedError
 
+
     def transform(self, Xb, yb):
 
-        fnames, labels = super(SharedIterator, self).transform(Xb, yb)
-        args = []
+        shared_array_name = str(uuid4())
+        try:
+            shared_array = SharedArray.create(
+                shared_array_name, [len(Xb), 3, self.model.get('w'), 
+                                    self.model.get('h')], dtype=np.float32)
+                                        
+            fnames, labels = super(SharedIterator, self).transform(Xb, yb)
+            args = []
 
-        for i, fname in enumerate(fnames):
-            kwargs = self.model.cnf.copy()
-            kwargs['transform'] = getattr(self, 'tf', None)
-            kwargs['color_vec'] = getattr(self, 'color_vec', None)
-            kwargs.update(self._get_metata())
-            args.append((i, fname, kwargs))
+            for i, fname in enumerate(fnames):
+                kwargs = self.model.cnf.copy()
+                kwargs['transform'] = getattr(self, 'tf', None)
+                kwargs['color_vec'] = getattr(self, 'color_vec', None)
+                kwargs.update(self._get_metata())
+                args.append((i, shared_array_name, fname, kwargs))
 
-        self.pool.map(load_shared, args)
-        Xb = np.array(shared_array[:len(fnames)], dtype=np.float32)
+            self.pool.map(load_shared, args)
+            Xb = np.array(shared_array, dtype=np.float32)
+
+        finally:
+            SharedArray.delete(shared_array_name)
 
         return Xb, labels
 
