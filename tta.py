@@ -30,53 +30,47 @@ def build_transforms(**kwargs):
 
     return transforms
 
-# TODO it's probably better to merge the two functions and use one halton
-#      sequence
-def build_color_tta(num_transforms, sigma):
-    gen = ghalton.Halton(3)
-    uniform_samples = np.array(gen.get(num_transforms))
 
-
-def build_quasirandom_transforms(num_transforms, sigma, zoom_range, 
+def build_quasirandom_transforms(num_transforms, color_sigma, zoom_range, 
                                  rotation_range, shear_range, 
                                  translation_range, do_flip=True, 
                                  allow_stretch=False):
-    gen = ghalton.Halton(10)  # 7 dimensions to sample along
+    gen = ghalton.Halton(10)
     uniform_samples = np.array(gen.get(num_transforms))
 
     tfs = []
     for s in uniform_samples:
-        shift_x = icdf.uniform(s[0], *translation_range)
-        shift_y = icdf.uniform(s[1], *translation_range)
+        rotation = icdf.uniform(s[0], *rotation_range)
+        shift_x = icdf.uniform(s[1], *translation_range)
+        shift_y = icdf.uniform(s[2], *translation_range)
         translation = (shift_x, shift_y)
 
-        rotation = icdf.uniform(s[2], *rotation_range)
-        shear = icdf.uniform(s[3], *shear_range)
+        # setting shear last because we're not using it at the moment
+        shear = icdf.uniform(s[9], *shear_range)
 
         if do_flip:
-            flip = icdf.bernoulli(s[4], p=0.5)
+            flip = icdf.bernoulli(s[8], p=0.5)
         else:
             flip = False
 
         log_zoom_range = [np.log(z) for z in zoom_range]
         if isinstance(allow_stretch, float):
             log_stretch_range = [-np.log(allow_stretch), np.log(allow_stretch)]
-            zoom = np.exp(icdf.uniform(s[5], *log_zoom_range))
-            stretch = np.exp(icdf.uniform(s[6], *log_stretch_range))
+            zoom = np.exp(icdf.uniform(s[6], *log_zoom_range))
+            stretch = np.exp(icdf.uniform(s[7], *log_stretch_range))
             zoom_x = zoom * stretch
             zoom_y = zoom / stretch
         elif allow_stretch is True:  # avoid bugs, f.e. when it is an integer
-            zoom_x = np.exp(icdf.uniform(s[5], *log_zoom_range))
-            zoom_y = np.exp(icdf.uniform(s[6], *log_zoom_range))
+            zoom_x = np.exp(icdf.uniform(s[6], *log_zoom_range))
+            zoom_y = np.exp(icdf.uniform(s[7], *log_zoom_range))
         else:
-            zoom_x = zoom_y = np.exp(icdf.uniform(s[5], *log_zoom_range))
+            zoom_x = zoom_y = np.exp(icdf.uniform(s[6], *log_zoom_range))
         # the range should be multiplicatively symmetric, so [1/1.1, 1.1] instead of [0.9, 1.1] makes more sense.
 
         tfs.append(data.build_augmentation_transform((zoom_x, zoom_y),
                    rotation, shear, translation, flip))
 
-    color_vecs = [np.array([icdf.normal(r, avg=0.0, std=sigma) 
-                            for r in s[-3:]], dtype=np.float32) 
+    color_vecs = [icdf.normal(s[3:6], avg=0.0, std=color_sigma) 
                   for s in uniform_samples]
 
     return tfs, color_vecs
