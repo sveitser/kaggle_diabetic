@@ -89,14 +89,15 @@ def per_patient_split(labels):
     return tr, te
 
 
-def per_patient_reshape(X):
+def per_patient_reshape(X, X_other=None):
+    X_other = X if X_other is None else X_other
     right_eye = np.arange(0, X.shape[0])[:, np.newaxis] % 2
     #X = X.reshape(len(X) / 2, -1).repeat(2, axis=0)
     n = len(X)
     left_idx = np.arange(n)
     right_idx = left_idx + np.sign(2 * ((left_idx + 1) % 2) - 1)
 
-    return np.hstack([X[left_idx], X[right_idx], right_eye])
+    return np.hstack([X[left_idx], X_other[right_idx], right_eye])
 
 #def per_patient_reshape(X):
 #    right_eye = np.arange(0, X.shape[0])[:, np.newaxis] % 2

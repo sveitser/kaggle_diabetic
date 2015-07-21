@@ -161,7 +161,9 @@ class SharedIterator(QueueIterator):
             args = []
 
             for i, fname in enumerate(fnames):
-                kwargs = self.model.cnf.copy()
+                kwargs = {k: self.model.get(k) for k in 
+                          ['w', 'h', 'rotate', 'aug_params', 'color', 'sigma', 
+                           'mean', 'std']}
                 kwargs['transform'] = getattr(self, 'tf', None)
                 kwargs['color_vec'] = getattr(self, 'color_vec', None)
                 kwargs.update(self._get_metata())

@@ -135,7 +135,7 @@ def main(directory, convert_directory, test, crop_size, extension, micro):
         pass
 
     filenames = [os.path.join(dp, f) for dp, dn, fn in os.walk(directory)
-                 for f in fn if f.endswith('jpeg')]
+                 for f in fn if f.endswith('jpeg') or f.endswith('tiff')] 
     filenames = sorted(filenames)
 
     if test:

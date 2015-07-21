@@ -33,7 +33,7 @@ def create_net(model, tta=False, retrain_until=None, **kwargs):
         'layers': model.layers,
         'batch_iterator_train': SingleIterator(
             model, batch_size=model.get('batch_size_train', BATCH_SIZE),
-            deterministic=False, resample=True),
+            deterministic=False, resample=model.get('resample', True)),
         'batch_iterator_test': SingleIterator(
             model, batch_size=model.get('batch_size_test', BATCH_SIZE), 
             deterministic=False if tta else True, 
@@ -42,9 +42,12 @@ def create_net(model, tta=False, retrain_until=None, **kwargs):
             #AdjustVariable('update_momentum', 
             #                start=model.get('momentum', INITIAL_MOMENTUM),
             #                stop=0.999),
+            DecayReluSlope(),
             SaveWeights(model.weights_epoch, every_n_epochs=5),
-            SaveWeights(model.weights_best, every_n_epochs=1, only_best=True),
-            SaveBestWeights(),
+            SaveBestWeights(
+                loss='train_loss' if retrain_until is not None else 'kappa',
+                greater_is_better=False if retrain_until is not None else True,
+            ),
         ],
         'objective': get_l2_objective(model.get('weight_decay', 0.0005)),
         'use_label_encoder': False,
@@ -72,6 +75,7 @@ def create_net(model, tta=False, retrain_until=None, **kwargs):
         args['custom_score'] = (CUSTOM_SCORE_NAME, util.kappa)
         args['on_epoch_finished'] += [
             Schedule('update_learning_rate', model.get('schedule')),
+            SaveWeights(model.weights_best, every_n_epochs=1, only_best=True),
         ]
 
     args.update(kwargs)
@@ -145,6 +149,23 @@ class AdjustVariable(object):
         getattr(nn, self.name).set_value(new_value)
 
 
+class DecayReluSlope(object):
+    def __call__(self, nn, train_history):
+        slope = nn._model.get('slope', None)
+        value = None
+        if slope is not None and 'slope_schedule' in nn._model.cnf:
+            schedule = nn._model.cnf['slope_schedule']
+            epoch = train_history[-1]['epoch']
+            if epoch in schedule:
+                value = float32(schedule[epoch])
+        elif slope is not None:
+            value = float32(
+                max(slope.get_value() * nn._model.cnf['slope_decay'],
+                    nn._model.get('min_slope', 0.0)))
+        if value:
+            slope.set_value(value)
+
+
 class Schedule(object):
     def __init__(self, name, schedule):
         self.name = name
@@ -162,7 +183,7 @@ class Schedule(object):
 
 
 class SaveBestWeights(object):
-    def __init__(self, loss='kappa', greater_is_better=False):
+    def __init__(self, loss='kappa', greater_is_better=True):
         self.best_valid = np.inf
         self.best_valid_epoch = 0
         self.best_weights = None

@@ -9,7 +9,7 @@ cnf = {
     'train_dir': 'data/train_medium',
     'test_dir': 'data/test_medium',
     'batch_size_train': 64,
-    'batch_size_test': 16,
+    'batch_size_test': 8,
     'mean': [108.64628601, 75.86886597, 54.34005737],
     'std': [70.53946096, 51.71475228, 43.03428563],
     #'learning_rate': 0.001,
@@ -20,7 +20,7 @@ cnf = {
     'balance': 1.0,
     #'balance_weights':  np.array([1, 2, 2, 3, 3.5], dtype=float),
     'balance_weights': np.array(CLASS_WEIGHTS),
-    'balance_ratio': 0.9,
+    'balance_ratio': 0.96,
     'final_balance_weights':  np.array([1, 2, 2, 3, 3.5], dtype=float),
     'aug_params': {
         'zoom_range': (1 / 1.2, 1.2),
@@ -35,9 +35,9 @@ cnf = {
     'sigma': 0.2,
     'schedule': {
         0: 0.0025,
-        20: 0.00025,
-        70: 0.000025,
-        100: 'stop',
+        150: 0.00025,
+        200: 0.000025,
+        250: 'stop',
     },
 }
 
@@ -50,7 +50,7 @@ def cp(num_filters, *args, **kwargs):
     args.update(kwargs)
     return conv_params(**args)
 
-n = 24
+n = 16
 
 layers = [
     (InputLayer, {'shape': (cnf['batch_size_train'], C, cnf['w'], cnf['h'])}),
@@ -74,10 +74,10 @@ layers = [
     #(Conv2DLayer, cp(384, border_mode=None, pad=2)),
     (RMSPoolLayer, pool_params(pool_size=(3, 3), stride=(3, 3))), # pad to get even x/y
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, dense_params(1024)),
+    (DenseLayer, dense_params(512)),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, dense_params(1024)),
+    (DenseLayer, dense_params(512)),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
                   'nonlinearity': rectify if REGRESSION else softmax}),
