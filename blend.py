@@ -260,10 +260,10 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
             transform_file = transform_file.replace('train', 'test')
         X_test = load_transform(test=True, transform_file=transform_file)
 
-        X_test = scaler.transform(X_test).astype(np.float32)
+        X_test = scaler.transform(X_test)
 
         if per_patient:
-            X_test = per_patient_reshape(X_test)
+            X_test = per_patient_reshape(X_test).astype(np.float32)
 
     # util.split_indices split per patient by default now
     tr, te = util.split_indices(labels)
