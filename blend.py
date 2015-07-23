@@ -36,28 +36,29 @@ from nn import *
 START_MOM = 0.9
 STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.001
+START_LR = 0.0005
 END_LR = START_LR * 0.001
-L1 = 0.00001
+L1 = 1e-5
 L2 = 0.005
 N_ITER = 100
 PATIENCE = 20
 POWER = 0.5
-N_HIDDEN_1 = 32
-N_HIDDEN_2 = 32
+N_HIDDEN_1 = 128
+N_HIDDEN_2 = 128
 BATCH_SIZE = 128
 
 SCHEDULE = {
     'start': START_LR,
     60: START_LR / 10.0,
     80: START_LR / 100.0,
+    90: START_LR / 1000.0,
     N_ITER: 'stop'
 }
 
 RESAMPLE_WEIGHTS = [1.360, 14.37, 6.637, 40.23, 49.61]
 #RESAMPLE_WEIGHTS = [1, 3, 2, 4, 5]
-RESAMPLE_PROB = 0.05
-SHUFFLE_PROB = 0.05
+RESAMPLE_PROB = 0.2
+SHUFFLE_PROB = 0.5
 
 def get_objective(l1=L1, l2=L2):
     class RegularizedObjective(Objective):
@@ -172,14 +173,16 @@ class AdjustPower(object):
 def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
-        #(DropoutLayer, {'p': 0.8}),
-        (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': very_leaky_rectify,
+        #(DropoutLayer, {'p': 0.2}),
+        (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': very_leaky_rectify,
+        #(FeatureWTALayer, {'pool_size': 2}),
+        (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
+        #(FeatureWTALayer, {'pool_size': 2}),
         #(DropoutLayer, {'p': 0.5}),
         #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify,
         #              'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
@@ -257,10 +260,10 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
             transform_file = transform_file.replace('train', 'test')
         X_test = load_transform(test=True, transform_file=transform_file)
 
+        X_test = scaler.transform(X_test).astype(np.float32)
+
         if per_patient:
             X_test = per_patient_reshape(X_test)
-
-        X_test = scaler.transform(X_test).astype(np.float32)
 
     # util.split_indices split per patient by default now
     tr, te = util.split_indices(labels)
