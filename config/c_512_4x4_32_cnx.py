@@ -18,7 +18,7 @@ cnf = {
     #'n_classes': 3,
     'rotate': True,
     'balance': 1.0,
-    #'balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
+    #'balance_weights':  np.array([1, 2, 2, 2.5, 3], dtype=float),
     'balance_weights': np.array(CLASS_WEIGHTS),
     'balance_ratio': 0.975,
     'final_balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
@@ -32,7 +32,7 @@ cnf = {
     },
     'weight_decay': 0.0005,
     'color': True,
-    'sigma': 0.5,
+    'sigma': 0.25,
     'schedule': {
         0: 0.003,
         150: 0.0003,
@@ -46,7 +46,7 @@ nonlinearity = leaky_rectify
 def cp(num_filters, *args, **kwargs):
     args = {
         'num_filters': num_filters,
-        'filter_size': (3, 3),
+        'filter_size': (4, 4),
         'nonlinearity': nonlinearity,
     }
     args.update(kwargs)
@@ -64,24 +64,41 @@ n = 32
 
 layers = [
     (InputLayer, {'shape': (cnf['batch_size_train'], C, cnf['w'], cnf['h'])}),
-    (Conv2DLayer, cp(n, filter_size=(5, 5), stride=(2, 2))),
-    (Conv2DLayer, cp(n)),
-    (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(2 * n, filter_size=(5, 5), stride=(2, 2))),
+    (Conv2DLayer, cp(n, stride=(2, 2))),
+    (Conv2DLayer, cp(n, border_mode=None, pad=2)),
+
+    (MaxPool2DLayer, pool_params(name='pool0')),
+
+    (Conv2DLayer, cp(2 * n, stride=(2, 2))),
+    (Conv2DLayer, cp(2 * n, border_mode=None, pad=2)),
     (Conv2DLayer, cp(2 * n)),
-    (Conv2DLayer, cp(2 * n)),
-    (MaxPool2DLayer, pool_params()),
+    (MaxPool2DLayer, pool_params(name='pool1')),
+
+    (Conv2DLayer, cp(4 * n, border_mode=None, pad=2)),
     (Conv2DLayer, cp(4 * n)),
-    (Conv2DLayer, cp(4 * n)),
-    (Conv2DLayer, cp(4 * n)),
-    (MaxPool2DLayer, pool_params()),
+    (Conv2DLayer, cp(4 * n, border_mode=None, pad=2)),
+    (MaxPool2DLayer, pool_params(name='pool2')),
+
+    (Conv2DLayer, cp(8 * n, border_mode=None, pad=2)),
     (Conv2DLayer, cp(8 * n)),
-    (Conv2DLayer, cp(8 * n)),
-    (Conv2DLayer, cp(8 * n)),
-    (MaxPool2DLayer, pool_params()),
+    (Conv2DLayer, cp(8 * n, border_mode=None, pad=2)),
+    (MaxPool2DLayer, pool_params(name='pool3')),
+
     (Conv2DLayer, cp(16 * n)),
-    (Conv2DLayer, cp(16 * n)),
-    (RMSPoolLayer, pool_params(stride=(3, 3))),
+    (RMSPoolLayer, pool_params()),
+    (FlattenLayer, {'name': 'rms'}),
+
+    #(FlattenLayer, {'name': 'f0', 'incoming': 'pool0'}),
+    (FlattenLayer, {'name': 'f1', 'incoming': 'pool1'}),
+    (FlattenLayer, {'name': 'f2', 'incoming': 'pool2'}),
+    (FlattenLayer, {'name': 'f3', 'incoming': 'pool3'}),
+
+    (ConcatLayer, {'name': 'pools', 
+                   'incomings': ['f1', 'f2', 'f3']}),
+    (DenseLayer, dp(32, name='cnx')),
+
+    (ConcatLayer, {'incomings': ['cnx', 'rms']}),
+
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, dp(1024)),
     (FeaturePoolLayer, {'pool_size': 2}),

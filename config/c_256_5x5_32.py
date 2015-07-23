@@ -4,12 +4,12 @@ from model import Model
 
 cnf = {
     'name': __name__.split('.')[-1],
-    'w': 448,
-    'h': 448,
-    'train_dir': 'data/train_medium',
-    'test_dir': 'data/test_medium',
-    'batch_size_train': 32,
-    'batch_size_test': 8,
+    'w': 224,
+    'h': 224,
+    'train_dir': 'data/train_small',
+    'test_dir': 'data/test_small',
+    'batch_size_train': 128,
+    'batch_size_test': 16,
     'mean': [108.64628601, 75.86886597, 54.34005737],
     'std': [70.53946096, 51.71475228, 43.03428563],
     #'learning_rate': 0.001,
@@ -36,8 +36,7 @@ cnf = {
     'schedule': {
         0: 0.003,
         150: 0.0003,
-        220: 0.00003,
-        251: 'stop',
+        201: 'stop',
     },
 }
 
@@ -78,9 +77,9 @@ layers = [
     (Conv2DLayer, cp(8 * n)),
     (Conv2DLayer, cp(8 * n)),
     (Conv2DLayer, cp(8 * n)),
-    (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(16 * n)),
-    (Conv2DLayer, cp(16 * n)),
+    #(MaxPool2DLayer, pool_params()),
+    #(Conv2DLayer, cp(16 * n)),
+    #(Conv2DLayer, cp(16 * n)),
     (RMSPoolLayer, pool_params(stride=(3, 3))),
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, dp(1024)),
