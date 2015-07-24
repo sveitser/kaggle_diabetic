@@ -249,7 +249,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     dirs = glob('data/features/*')
 
     X_trains = [load_transform(directory=directory, 
-                              transform_file=transform_file)
+                               transform_file=transform_file)
                 for directory in dirs]
     scalers = [StandardScaler() for _ in X_trains]
     X_trains = [scaler.fit_transform(X_train) 
@@ -265,15 +265,16 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
         if transform_file is not None:
             transform_file = transform_file.replace('train', 'test')
-        X_tests = [load_transform(test=True, transform_file=transform_file)
+        X_tests = [load_transform(directory=directory, test=True, 
+                                  transform_file=transform_file)
                    for directory in dirs]
 
         X_tests = [scaler.transform(X_test) 
                    for scaler, X_test in zip(scalers, X_tests)]
 
         if per_patient:
-            X_test = [per_patient_reshape(X_test).astype(np.float32)
-                      for X_test in X_tests]
+            X_tests = [per_patient_reshape(X_test).astype(np.float32)
+                       for X_test in X_tests]
 
     # util.split_indices split per patient by default now
     tr, te = util.split_indices(labels)
