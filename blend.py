@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 from collections import Counter
 from datetime import datetime
+from glob import glob
 import os
 import pprint
 
@@ -38,7 +39,7 @@ STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
 START_LR = 0.0005
 END_LR = START_LR * 0.001
-L1 = 1e-5
+L1 = 1e-4
 L2 = 0.005
 N_ITER = 100
 PATIENCE = 20
@@ -57,7 +58,7 @@ SCHEDULE = {
 
 RESAMPLE_WEIGHTS = [1.360, 14.37, 6.637, 40.23, 49.61]
 #RESAMPLE_WEIGHTS = [1, 3, 2, 4, 5]
-RESAMPLE_PROB = 0.1
+RESAMPLE_PROB = 0.2
 SHUFFLE_PROB = 0.5
 
 def get_objective(l1=L1, l2=L2):
@@ -229,6 +230,7 @@ def get_estimator(n_features, **kwargs):
     args.update(kwargs)
     return Net(l, **args)
 
+
 @click.command()
 @click.option('--cnf', default='config/c_512_4x4_very.py',
               help="Path or name of configuration module.")
@@ -244,26 +246,34 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     names = util.get_names(files)
     labels = util.get_labels(names).astype(np.float32)[:, np.newaxis]
 
-    scaler = StandardScaler()
+    dirs = glob('data/features/*')
 
-    X_train = load_transform(transform_file=transform_file)
-    X_train = scaler.fit_transform(X_train)
+    X_trains = [load_transform(directory=directory, 
+                              transform_file=transform_file)
+                for directory in dirs]
+    scalers = [StandardScaler() for _ in X_trains]
+    X_trains = [scaler.fit_transform(X_train) 
+                for scaler, X_train in zip(scalers, X_trains)]
     #Xt = PCA(n_components=1).fit_transform(X_train)
 
     if per_patient:
         #X_train = per_patient_reshape(X_train, Xt).astype(np.float32)
-        X_train = per_patient_reshape(X_train).astype(np.float32)
+        X_trains = [per_patient_reshape(X_train).astype(np.float32)
+                    for X_train in X_trains]
 
     if predict:
 
         if transform_file is not None:
             transform_file = transform_file.replace('train', 'test')
-        X_test = load_transform(test=True, transform_file=transform_file)
+        X_tests = [load_transform(test=True, transform_file=transform_file)
+                   for directory in dirs]
 
-        X_test = scaler.transform(X_test)
+        X_tests = [scaler.transform(X_test) 
+                   for scaler, X_test in zip(scalers, X_tests)]
 
         if per_patient:
-            X_test = per_patient_reshape(X_test).astype(np.float32)
+            X_test = [per_patient_reshape(X_test).astype(np.float32)
+                      for X_test in X_tests]
 
     # util.split_indices split per patient by default now
     tr, te = util.split_indices(labels)
@@ -287,29 +297,30 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         else:
             y_preds = []
             for i in range(n_iter):
-                print('iter {}'.format(i))
-                print('fitting split training set')
-                est = get_estimator(X_train.shape[1])
-                est.fit(X_train, labels)
-                y_pred = est.predict(X_train[te]).ravel()
-                y_preds.append(y_pred)
-             
-                y_pred = np.mean(y_preds, axis=0)
-                y_pred  = np.clip(np.round(y_pred).astype(int),
-                                  np.min(labels), np.max(labels))
-                print(labels[te].ravel().shape, y_pred.shape)
-                print('kappa', i, util.kappa(labels[te], y_pred))
-                print(confusion_matrix(labels[te], y_pred))
+                for X_train in X_trains:
+                    print('iter {}'.format(i))
+                    print('fitting split training set')
+                    est = get_estimator(X_train.shape[1])
+                    est.fit(X_train, labels)
+                    y_pred = est.predict(X_train[te]).ravel()
+                    y_preds.append(y_pred)
+                    y_pred = np.mean(y_preds, axis=0)
+                    y_pred  = np.clip(np.round(y_pred).astype(int),
+                                      np.min(labels), np.max(labels))
+                    print(labels[te].ravel().shape, y_pred.shape)
+                    print('kappa', i, util.kappa(labels[te], y_pred))
+                    print(confusion_matrix(labels[te], y_pred))
 
     if predict:
 
         y_preds = []
         for i in range(n_iter):
-            print('fitting full training set')
-            est = get_estimator(X_train.shape[1], eval_size=0.0)
-            est.fit(X_train, labels)
-            y_pred = est.predict(X_test).ravel()
-            y_preds.append(y_pred)
+            for X_train, X_test in zip(X_trains, X_tests):
+                print('fitting full training set')
+                est = get_estimator(X_train.shape[1], eval_size=0.0)
+                est.fit(X_train, labels)
+                y_pred = est.predict(X_test).ravel()
+                y_preds.append(y_pred)
 
         y_pred = np.mean(y_preds, axis=0)
         y_pred  = np.clip(np.round(y_pred),
