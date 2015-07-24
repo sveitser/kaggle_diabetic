@@ -23,7 +23,7 @@ def fit(cnf, weights):
 
     model = util.load_module(cnf).model
 
-    model.cnf['batch_size'] = 8
+    model.cnf['batch_size'] = 128
 
     files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
     names = util.get_names(files)

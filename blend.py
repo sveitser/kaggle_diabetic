@@ -36,15 +36,15 @@ from nn import *
 START_MOM = 0.9
 STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.0005
+START_LR = 0.001
 END_LR = START_LR * 0.001
-L1 = 0.0005
+L1 = 0.00001
 L2 = 0.005
 N_ITER = 100
 PATIENCE = 20
 POWER = 0.5
-N_HIDDEN_1 = 128
-N_HIDDEN_2 = 128
+N_HIDDEN_1 = 32
+N_HIDDEN_2 = 32
 BATCH_SIZE = 128
 
 SCHEDULE = {
@@ -241,15 +241,15 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
     names = util.get_names(files)
     labels = util.get_labels(names).astype(np.float32)[:, np.newaxis]
 
-    X_train = load_transform(transform_file=transform_file)
-
     scaler = StandardScaler()
 
-    if per_patient:
-        X_train = per_patient_reshape(X_train) 
+    X_train = load_transform(transform_file=transform_file)
+    X_train = scaler.fit_transform(X_train)
+    #Xt = PCA(n_components=1).fit_transform(X_train)
 
-    X_train = scaler.fit_transform(X_train).astype(np.float32) 
-        
+    if per_patient:
+        #X_train = per_patient_reshape(X_train, Xt).astype(np.float32)
+        X_train = per_patient_reshape(X_train).astype(np.float32)
 
     if predict:
 

@@ -89,7 +89,8 @@ no_augmentation_params_gaussian = {
     'stretch_std': 0.0,
 }
 
-# timings for in 512px out 448px: order=0: 19.8ms, 26ms
+# timings for in 512px out 448px: order=0: 19.8ms, order=1 26ms
+# unsure if order=0 has negative impact on training
 def fast_warp(img, tf, output_shape=(W, H), mode='constant', order=0):
     """
     This wrapper function is faster than skimage.transform.warp
@@ -238,6 +239,7 @@ def load_perturbed(fname):
     return perturb(img)
 
 def augment_color(img, sigma=0.1, color_vec=None):
+
     if color_vec is None:
         color_vec = np.random.normal(0.0, sigma, 3)
     
@@ -252,7 +254,9 @@ def load(fname, *args, **kwargs):
     h = kwargs['h']
     img = util.load_image(fname)
     if kwargs.get('deterministic') is True:
-        img = crop(img, w=w, h=h)
+        #img = crop(img, w=w, h=h)
+        img = perturb(img, augmentation_params=no_augmentation_params,
+                      target_shape=(w, h))
     elif kwargs.get('rotate') is True:
         aug_params = kwargs.get('aug_params', default_augmentation_params)
         if kwargs.get('transform') is None:

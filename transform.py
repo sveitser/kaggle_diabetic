@@ -33,12 +33,17 @@ def transform(cnf, n_iter, test, train, weights_from):
     if test:
         runs['test'] = model.get('test_dir', TEST_DIR)
 
-    model.cnf['batch_size_test'] = 64
+    model.cnf['batch_size_test'] = 32
 
     # reduced augmentation for TTA
     #model.cnf['sigma'] = 0.02
+    #model.cnf['color'] = False
     #model.cnf['aug_params']['zoom_range'] = (1.0 / 1.2, 1.2)
     #model.cnf['aug_params']['translation_range'] = (20, 20)
+    #start = model.cnf['slope'].get_value()
+    #model.cnf['slope'].set_value(nn.float32(
+    #    start * model.cnf['slope_decay'] ** 209))
+    #print(model.cnf['slope'].get_value())
 
     net = nn.create_net(model, tta=True if n_iter > 1 else False)
 
@@ -74,7 +79,7 @@ def transform(cnf, n_iter, test, train, weights_from):
                 Xs += X
                 Xs2 += X**2
 
-            print('took {:6.1f}'.format(time.time() - tic))
+            print('took {:6.1f}s'.format(time.time() - tic))
             if i % 5 == 0 or n_iter < 5:
                 std = np.sqrt((Xs2 - Xs**2 / i) / (i - 1))
                 model.save_transform(Xs / i, i,
