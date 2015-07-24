@@ -43,8 +43,8 @@ L2 = 0.005
 N_ITER = 100
 PATIENCE = 20
 POWER = 0.5
-N_HIDDEN_1 = 128
-N_HIDDEN_2 = 128
+N_HIDDEN_1 = 32
+N_HIDDEN_2 = 32
 BATCH_SIZE = 128
 
 SCHEDULE = {
@@ -173,7 +173,7 @@ class AdjustPower(object):
 def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
-        #(DropoutLayer, {'p': 0.2}),
+        #(DropoutLayer, {'p': 0.5}),
         (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': leaky_rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
