@@ -19,11 +19,13 @@ import tta
               help="Path or name of configuration module.")
 @click.option('--n_iter', default=1,
               help="Iterations for test time averaging.")
+@click.option('--skip', default=0,
+              help="Number of pseudo TTA iterations to skip.")
 @click.option('--test', is_flag=True, default=False)
 @click.option('--train', is_flag=True, default=False)
 @click.option('--weights_from', default=None,
               help='Path to initial weights file.', type=str)
-def transform(cnf, n_iter, test, train, weights_from):
+def transform(cnf, n_iter, skip, test, train, weights_from):
 
     model = util.load_module(cnf).model
 
@@ -56,7 +58,7 @@ def transform(cnf, n_iter, test, train, weights_from):
         print("loaded weights from {}".format(weights_from))
 
     tfs, color_vecs = tta.build_quasirandom_transforms(
-            n_iter, model.cnf['sigma'], **model.cnf['aug_params'])
+            n_iter, model.cnf['sigma'], skip=skip, **model.cnf['aug_params'])
 
     for run, directory in sorted(runs.items(), reverse=True):
 
@@ -82,9 +84,9 @@ def transform(cnf, n_iter, test, train, weights_from):
             print('took {:6.1f}s'.format(time.time() - tic))
             if i % 5 == 0 or n_iter < 5:
                 std = np.sqrt((Xs2 - Xs**2 / i) / (i - 1))
-                model.save_transform(Xs / i, i,
+                model.save_transform(Xs / i, i, skip=skip,
                                      test=True if run == 'test' else False)
-                model.save_std(std, i,
+                model.save_std(std, i, skip=skip,
                                test=True if run == 'test' else False)
                 print('saved {} iterations'.format(i))
 
