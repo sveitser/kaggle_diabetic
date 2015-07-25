@@ -1,7 +1,7 @@
 #
-#   Mathis: Found here,
+#   Mathis: taken from here,
 #   https://github.com/benhamner/Metrics/blob/master/Python/ml_metrics/quadratic_weighted_kappa.py
-#   not sure if correct.
+#   slightly modified to suit our needs.
 #
 import numpy as np
 

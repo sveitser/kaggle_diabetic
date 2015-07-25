@@ -44,10 +44,10 @@ def get_xgb(**kwargs):
     }
     args = {
         'subsample': 0.5,
-        'colsample_bytree': 0.02,
-        'learning_rate': 0.08,
+        'colsample_bytree': 0.2,
+        'learning_rate': 0.1,
         'seed': 99,
-        'n_estimators': 120,
+        'n_estimators': 100,
         'max_depth': 3,
         #'silent': False,
     }
@@ -214,7 +214,7 @@ def average_thresholds(thresholds):
 
 
 @click.command()
-@click.option('--cnf', default='config/c_768_4x4_very.py',
+@click.option('--cnf', default='config/c_512_4x4_32.py',
               help="Path or name of configuration module.")
 @click.option('--predict', is_flag=True, default=False)
 @click.option('--grid_search', is_flag=True, default=False)

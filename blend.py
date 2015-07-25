@@ -29,8 +29,14 @@ from definitions import *
 from boost import *
 from layers import *
 from nn import *
+from model import mkdir
+
+np.random.seed(42)
 
 #theano.sandbox.cuda.use("cpu")
+
+BLEND_FEATURE_DIR = 'data/blend'
+mkdir(BLEND_FEATURE_DIR)
 
 #MIN_LEARNING_RATE = 0.000001
 #MAX_MOMENTUM = 0.9721356783919598
@@ -49,7 +55,6 @@ N_HIDDEN_2 = 32
 BATCH_SIZE = 128
 
 SCHEDULE = {
-    'start': START_LR,
     60: START_LR / 10.0,
     80: START_LR / 100.0,
     90: START_LR / 1000.0,
@@ -57,7 +62,8 @@ SCHEDULE = {
 }
 
 RESAMPLE_WEIGHTS = [1.360, 14.37, 6.637, 40.23, 49.61]
-#RESAMPLE_WEIGHTS = [1, 3, 2, 4, 5]
+#RESAMPLE_WEIGHTS = [1, 5, 3, 40, 50]
+#RESAMPLE_PROB = 0.3
 RESAMPLE_PROB = 0.2
 SHUFFLE_PROB = 0.5
 
@@ -98,7 +104,14 @@ def shuffle(*arrays):
     p = np.random.permutation(len(arrays[0]))
     return [array[p] for array in arrays]
 
+class TestIterator(BatchIterator):
+    # make this work with the transform method in nn.py
+    def __call__(self, X, y=None, **kwargs):
+        return super(TestIterator, self).__call__(X, y)
+
 class ResampleIterator(BatchIterator):
+
+
     def __iter__(self):
         n_samples = self.X.shape[0]
         bs = self.batch_size
@@ -175,12 +188,12 @@ def get_estimator(n_features, **kwargs):
     l = [
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': leaky_rectify,
+        (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
         #(DropoutLayer, {'p': 0.5}),
         #(FeatureWTALayer, {'pool_size': 2}),
-        (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': leaky_rectify,
+        (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': rectify,
                       'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
         #(FeatureWTALayer, {'pool_size': 2}),
@@ -205,6 +218,7 @@ def get_estimator(n_features, **kwargs):
 
         #batch_iterator_train=ShuffleIterator(BATCH_SIZE),
         batch_iterator_train=ResampleIterator(BATCH_SIZE),
+        batch_iterator_test=TestIterator(BATCH_SIZE),
 
         objective=get_objective(),
         #objective_loss_function=epsilon_insensitive,
@@ -238,19 +252,25 @@ def get_estimator(n_features, **kwargs):
 @click.option('--grid_search', is_flag=True, default=False)
 @click.option('--per_patient', is_flag=True, default=False)
 @click.option('--transform_file', default=None)
+@click.option('--directory', default=None)
 @click.option('--n_iter', default=1)
-def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
+@click.option('--transform', is_flag=True, default=False)
+def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
+        directory, transform):
 
     model = util.load_module(cnf).model
     files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
     names = util.get_names(files)
     labels = util.get_labels(names).astype(np.float32)[:, np.newaxis]
 
-    dirs = glob('data/features/*')
+    dirs = glob('data/features/*') if directory is None else [directory]
 
-    X_trains = [load_transform(directory=directory, 
-                               transform_file=transform_file)
-                for directory in dirs]
+    if transform_file is None:
+        X_trains = [load_transform(directory=directory)
+                    for directory in dirs]
+    else:
+        X_trains = [load_transform(transform_file=transform_file)]
+
     scalers = [StandardScaler() for _ in X_trains]
     X_trains = [scaler.fit_transform(X_train) 
                 for scaler, X_train in zip(scalers, X_trains)]
@@ -263,11 +283,13 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
     if predict:
 
-        if transform_file is not None:
+        if transform_file is None:
+            X_tests = [load_transform(directory=directory, test=True)
+                       for directory in dirs]
+        else:
             transform_file = transform_file.replace('train', 'test')
-        X_tests = [load_transform(directory=directory, test=True, 
-                                  transform_file=transform_file)
-                   for directory in dirs]
+            X_tests = [load_transform(test=True, 
+                                      transform_file=transform_file)]
 
         X_tests = [scaler.transform(X_test) 
                    for scaler, X_test in zip(scalers, X_tests)]
@@ -298,11 +320,21 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         else:
             y_preds = []
             for i in range(n_iter):
-                for X_train in X_trains:
+                for directory, X_train in zip(dirs, X_trains):
                     print('iter {}'.format(i))
                     print('fitting split training set')
                     est = get_estimator(X_train.shape[1])
                     est.fit(X_train, labels)
+
+                    if transform:
+                        X_feat = est.transform(X_train)
+                        fname = os.path.join(
+                            BLEND_FEATURE_DIR,
+                            '{}.npy'.format(directory.split('/')[-1]))
+
+                        np.save(fname, X_feat)
+                        print("saved transform to {}".format(fname))
+
                     y_pred = est.predict(X_train[te]).ravel()
                     y_preds.append(y_pred)
                     y_pred = np.mean(y_preds, axis=0)
