@@ -97,7 +97,8 @@ def per_patient_reshape(X, X_other=None):
     left_idx = np.arange(n)
     right_idx = left_idx + np.sign(2 * ((left_idx + 1) % 2) - 1)
 
-    return np.hstack([X[left_idx], X_other[right_idx], right_eye])
+    return np.hstack([X[left_idx], X_other[right_idx], 
+                      right_eye]).astype(np.float32)
 
 #def per_patient_reshape(X):
 #    right_eye = np.arange(0, X.shape[0])[:, np.newaxis] % 2

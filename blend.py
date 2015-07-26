@@ -269,12 +269,6 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
     scalers = [StandardScaler() for _ in X_trains]
     X_trains = [scaler.fit_transform(X_train) 
                 for scaler, X_train in zip(scalers, X_trains)]
-    #Xt = PCA(n_components=1).fit_transform(X_train)
-
-    if per_patient:
-        #X_train = per_patient_reshape(X_train, Xt).astype(np.float32)
-        X_trains = [per_patient_reshape(X_train).astype(np.float32)
-                    for X_train in X_trains]
 
     if predict:
 
@@ -289,9 +283,9 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
         X_tests = [scaler.transform(X_test) 
                    for scaler, X_test in zip(scalers, X_tests)]
 
-        if per_patient:
-            X_tests = [per_patient_reshape(X_test).astype(np.float32)
-                       for X_test in X_tests]
+        #if per_patient:
+        #    X_tests = [per_patient_reshape(X_test).astype(np.float32)
+        #               for X_test in X_tests]
 
     # util.split_indices split per patient by default now
     tr, te = util.split_indices(labels)
@@ -314,12 +308,15 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
             #est = gs.best_estimator_
         else:
             y_preds = []
+            y_preds_train = []
             for i in range(n_iter):
                 for X_train in X_trains:
+
+                    X = per_patient_reshape(X_train) if per_patient else X_train
                     print('iter {}'.format(i))
                     print('fitting split training set')
-                    est = get_estimator(X_train.shape[1], randomize=RANDOMIZE)
-                    est.fit(X_train, labels)
+                    est = get_estimator(X.shape[1], randomize=RANDOMIZE)
+                    est.fit(X, labels)
 
                     #if transform:
                     #    X_feat = est.transform(X_train)
@@ -330,28 +327,54 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
                     #    np.save(fname, X_feat)
                     #    print("saved transform to {}".format(fname))
 
-                    y_pred = est.predict(X_train[te]).ravel()
+                    y_pred = est.predict(X[te]).ravel()
+                    #y_pred_train = est.predict(X[tr]).ravel()
                     y_preds.append(y_pred)
+                    #y_preds_train.append(y_pred_train)
                     y_pred = np.mean(y_preds, axis=0)
                     y_pred  = np.clip(np.round(y_pred).astype(int),
                                       np.min(labels), np.max(labels))
-                    print(labels[te].ravel().shape, y_pred.shape)
+                    #y_pred = util.calibrated_levels(y_pred)
+                    #tresh, kappa = get_best_thresholds(np.mean(y_preds_train,
+                    #                                           axis=0), 
+                    #                                   labels[tr])
+                    #print('best kappa treshholds', tresh)
+                    #print('best kappa train', kappa)
+                    #y_pred = labels_from_thresholds(tresh, y_pred)
+
+                    #print(labels[te].ravel().shape, y_pred.shape)
                     print('kappa', i, util.kappa(labels[te], y_pred))
                     print(confusion_matrix(labels[te], y_pred))
 
     if predict:
 
         y_preds = []
+        y_preds_train = []
         for i in range(n_iter):
             for X_train, X_test in zip(X_trains, X_tests):
                 print('fitting full training set')
-                est = get_estimator(X_train.shape[1], eval_size=0.0, 
+                X = per_patient_reshape(X_train) if per_patient else X_train
+                Xt = per_patient_reshape(X_test) if per_patient else X_test
+                est = get_estimator(X.shape[1], eval_size=0.0, 
                                     randomize=RANDOMIZE)
-                est.fit(X_train, labels)
-                y_pred = est.predict(X_test).ravel()
+                est.fit(X, labels)
+                y_pred = est.predict(Xt).ravel()
                 y_preds.append(y_pred)
 
+                #y_pred_train = est.predict(X).ravel()
+                #y_preds_train.append(y_pred_train)
+                #tresh, kappa = get_best_thresholds(np.mean(y_preds_train,
+                #                                           axis=0), 
+                #                                   labels)
+                #print('best kappa treshholds', tresh)
+                #print('best kappa train', kappa)
+
+        #tresh, kappa = get_best_thresholds(np.mean(y_preds_train, axis=0), 
+        #                                   labels)
+        #print('best kappa treshholds', tresh)
+        #print('best kappa train', kappa)
         y_pred = np.mean(y_preds, axis=0)
+        #y_pred = labels_from_thresholds(tresh, y_pred)
         y_pred  = np.clip(np.round(y_pred),
                           np.min(labels), np.max(labels)).astype(int)
 

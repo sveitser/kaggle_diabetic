@@ -276,3 +276,16 @@ def grid_search_score_dataframe(gs):
     df.loc[:, 'mean'] = scores.mean(axis=1)
     df.loc[:, 'std'] = scores.std(axis=1)
     return df.iloc[np.argsort(df['mean'])]
+
+def calibrated_levels(y_pred):
+    n_test = len(y_pred)
+    s = np.argsort(y_pred)
+    levels = np.zeros(n_test, dtype=int)
+    n_train = np.sum(OCCURENCES.values())
+    start = 0
+    for level, occ in OCCURENCES.items():
+        expected = int(float(n_test) * occ / n_train)
+        levels[s[start:start+expected]] = level
+        start += expected
+    print(pd.value_counts(levels))
+    return levels

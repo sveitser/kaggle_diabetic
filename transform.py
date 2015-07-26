@@ -35,7 +35,7 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
     if test:
         runs['test'] = model.get('test_dir', TEST_DIR)
 
-    model.cnf['batch_size_test'] = 32
+    model.cnf['batch_size_test'] = 128
 
     # reduced augmentation for TTA
     #model.cnf['sigma'] = 0.02
