@@ -45,7 +45,7 @@ STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
 START_LR = 0.0005
 END_LR = START_LR * 0.001
-L1 = 1e-4
+L1 = 2e-5
 L2 = 0.005
 N_ITER = 100
 PATIENCE = 20
@@ -53,6 +53,7 @@ POWER = 0.5
 N_HIDDEN_1 = 32
 N_HIDDEN_2 = 32
 BATCH_SIZE = 128
+RANDOMIZE = False
 
 SCHEDULE = {
     60: START_LR / 10.0,
@@ -183,66 +184,56 @@ class AdjustPower(object):
         new_value = float32(self.ls[epoch - 1])
         getattr(nn, self.name).set_value(new_value)
 
+def get_nonlinearity():
+    return np.random.choice([rectify, leaky_rectify, very_leaky_rectify,
+                             sigmoid])
 
-def get_estimator(n_features, **kwargs):
+def rrange(a, b):
+    return (np.random.rand() + a) * (b - a)
+
+def get_estimator(n_features, eval_size=0.1, randomize=False):
+    n_hidden_1 = np.random.randint(12, 33) * 2 if randomize else N_HIDDEN_1
+    n_hidden_2 = np.random.randint(12, 33) * 2 if randomize else N_HIDDEN_2
+    nl1 = get_nonlinearity() if randomize else rectify
+    nl2 = get_nonlinearity() if randomize else rectify
+    b1 = rrange(0.01, 0.1) if randomize else 0.1
+    b2 = rrange(0.01, 0.1) if randomize else 0.1
+    l1 = np.random.lognormal(np.log(L1), 1) if randomize else L1
+    l2 = np.random.lognormal(np.log(L2), 1) if randomize else L2
     l = [
         (InputLayer, {'shape': (None, n_features)}),
-        #(DropoutLayer, {'p': 0.5}),
-        (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': rectify,
-                      'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
+        (DenseLayer, {'num_units': n_hidden_1, 'nonlinearity': nl1,
+                      'W': init.Orthogonal('relu'), 
+                      'b':init.Constant(b1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
-        #(DropoutLayer, {'p': 0.5}),
-        #(FeatureWTALayer, {'pool_size': 2}),
-        (DenseLayer, {'num_units': N_HIDDEN_2, 'nonlinearity': rectify,
-                      'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
+        (DenseLayer, {'num_units': n_hidden_2, 'nonlinearity': nl2,
+                      'W': init.Orthogonal('relu'), 
+                      'b':init.Constant(b2)}),
         (FeaturePoolLayer, {'pool_size': 2}),
-        #(FeatureWTALayer, {'pool_size': 2}),
-        #(DropoutLayer, {'p': 0.5}),
-        #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify,
-        #              'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
-        #(DropoutLayer, {'p': 0.5}),
-        #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify,
-        #              'W': init.Orthogonal('relu'), 'b':init.Constant(0.1)}),
-        #(DropoutLayer, {'p': 0.5}),
-        #(DenseLayer, {'num_units': 128, 'nonlinearity': leaky_rectify}),
         (DenseLayer, {'num_units': 1, 'nonlinearity': None}),
     ]
     args = dict(
-    
         #update=nesterov_momentum,
         update=adam,
-        #update=rmsprop,
-        #update=adadelta,
         update_learning_rate=theano.shared(float32(START_LR)),
         #update_momentum=theano.shared(float32(START_MOM)),
 
-        #batch_iterator_train=ShuffleIterator(BATCH_SIZE),
         batch_iterator_train=ResampleIterator(BATCH_SIZE),
         batch_iterator_test=TestIterator(BATCH_SIZE),
 
-        objective=get_objective(),
-        #objective_loss_function=epsilon_insensitive,
+        objective=get_objective(l1=l1, l2=l2),
 
-        eval_size=0.1,
-        custom_score=('kappa', util.kappa) \
-            if kwargs.get('eval_size', 0.1) > 0.0 else None,
-
+        eval_size=eval_size,
+        custom_score=('kappa', util.kappa) if eval_size > 0.0 else None,
         on_epoch_finished = [
-            #AdjustPower('update_learning_rate', start=START_LR),
             Schedule('update_learning_rate', SCHEDULE),
-            #AdjustVariable('update_momentum', start=START_MOM, stop=STOP_MOM),
-            #AdjustPower('update_momentum', start=START_MOM, power=0.5),
-            #AdjustLearningRate('update_learning_rate', loss='kappa', 
-            #                   greater_is_better=True, patience=PATIENCE,
-            #                   save=False),
         ],
-
         regression=True,
         max_epochs=N_ITER,
         verbose=1,
     )
-    args.update(kwargs)
     return Net(l, **args)
+
 
 
 @click.command()
@@ -252,7 +243,7 @@ def get_estimator(n_features, **kwargs):
 @click.option('--grid_search', is_flag=True, default=False)
 @click.option('--per_patient', is_flag=True, default=False)
 @click.option('--transform_file', default=None)
-@click.option('--directory', default=None)
+@click.option('--directory', default='data/features')
 @click.option('--n_iter', default=1)
 @click.option('--transform', is_flag=True, default=False)
 def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
@@ -263,11 +254,15 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
     names = util.get_names(files)
     labels = util.get_labels(names).astype(np.float32)[:, np.newaxis]
 
-    dirs = glob('data/features/*') if directory is None else [directory]
+    #dirs = glob('data/features/*/') if directory is None else [directory]
+    dirs = glob('{}/*/'.format(directory))
+    files = glob('{}/*.*'.format(directory))
 
     if transform_file is None:
         X_trains = [load_transform(directory=directory)
-                    for directory in dirs]
+                    for directory in dirs] \
+                   + [load_transform(transform_file=transform_file)
+                      for transform_file in files]
     else:
         X_trains = [load_transform(transform_file=transform_file)]
 
@@ -320,20 +315,20 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
         else:
             y_preds = []
             for i in range(n_iter):
-                for directory, X_train in zip(dirs, X_trains):
+                for X_train in X_trains:
                     print('iter {}'.format(i))
                     print('fitting split training set')
-                    est = get_estimator(X_train.shape[1])
+                    est = get_estimator(X_train.shape[1], randomize=RANDOMIZE)
                     est.fit(X_train, labels)
 
-                    if transform:
-                        X_feat = est.transform(X_train)
-                        fname = os.path.join(
-                            BLEND_FEATURE_DIR,
-                            '{}.npy'.format(directory.split('/')[-1]))
+                    #if transform:
+                    #    X_feat = est.transform(X_train)
+                    #    fname = os.path.join(
+                    #        BLEND_FEATURE_DIR,
+                    #        '{}.npy'.format(directory.split('/')[-1]))
 
-                        np.save(fname, X_feat)
-                        print("saved transform to {}".format(fname))
+                    #    np.save(fname, X_feat)
+                    #    print("saved transform to {}".format(fname))
 
                     y_pred = est.predict(X_train[te]).ravel()
                     y_preds.append(y_pred)
@@ -350,7 +345,8 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
         for i in range(n_iter):
             for X_train, X_test in zip(X_trains, X_tests):
                 print('fitting full training set')
-                est = get_estimator(X_train.shape[1], eval_size=0.0)
+                est = get_estimator(X_train.shape[1], eval_size=0.0, 
+                                    randomize=RANDOMIZE)
                 est.fit(X_train, labels)
                 y_pred = est.predict(X_test).ravel()
                 y_preds.append(y_pred)

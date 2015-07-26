@@ -82,13 +82,14 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
                 Xs2 += X**2
 
             print('took {:6.1f}s'.format(time.time() - tic))
-            if i % 5 == 0 or n_iter < 5:
+            if i % 10 == 0 or n_iter < 5:
                 std = np.sqrt((Xs2 - Xs**2 / i) / (i - 1))
                 model.save_transform(Xs / i, i, skip=skip,
                                      test=True if run == 'test' else False)
                 model.save_std(std, i, skip=skip,
                                test=True if run == 'test' else False)
                 print('saved {} iterations'.format(i))
+                Xs, Xs2 = None, None
 
 if __name__ == '__main__':
     transform()
