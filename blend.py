@@ -235,6 +235,21 @@ def get_estimator(n_features, eval_size=0.1, randomize=False):
     return Net(l, **args)
 
 
+def optimize_weights(preds, labels):
+    print(np.array(preds).shape)
+    print(np.array(labels).shape)
+    from scipy.optimize import minimize
+    def neg_kappa_from_weights(x):
+        return - util.kappa(average(x, preds), labels)
+    n = len(preds)
+    res = minimize(neg_kappa_from_weights, np.ones(n) / n, method='Powell')
+    print(res)
+    return res.x, -res.fun
+
+
+def average(w, preds):
+    return np.array(w).dot(preds) / np.sum(w)
+
 
 @click.command()
 @click.option('--cnf', default='config/c_512_4x4_very.py',
@@ -345,6 +360,11 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
                     #print(labels[te].ravel().shape, y_pred.shape)
                     print('kappa', i, util.kappa(labels[te], y_pred))
                     print(confusion_matrix(labels[te], y_pred))
+
+            
+            #w, kappa = optimize_weights(y_preds, labels[te])
+            #print('best weights {}'.format(w))
+            #print('best kappa {}'.format(kappa))
 
     if predict:
 
