@@ -31,7 +31,7 @@ from layers import *
 from nn import *
 from model import mkdir
 
-np.random.seed(13)
+np.random.seed(42)
 
 #theano.sandbox.cuda.use("cpu")
 
@@ -43,9 +43,9 @@ mkdir(BLEND_FEATURE_DIR)
 START_MOM = 0.9
 STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
-START_LR = 0.001
+START_LR = 0.0005
 END_LR = START_LR * 0.001
-L1 = 2e-5
+L1 = 1e-4
 L2 = 0.005
 N_ITER = 100
 PATIENCE = 20
@@ -62,6 +62,12 @@ SCHEDULE = {
     80: START_LR / 100.0,
     90: START_LR / 1000.0,
     N_ITER: 'stop'
+}
+
+TEST_SCHEDULE = {
+    20: START_LR / 100.0,
+    40: START_LR / 1000.0,
+    50: 'stop',
 }
 
 RESAMPLE_WEIGHTS = np.array([1.360, 14.37, 6.637, 40.23, 49.61])
@@ -138,10 +144,7 @@ class ResampleIterator(BatchIterator):
                 sl = slice(i * bs, (i + 1) * bs)
             Xb = self.X[sl]
             if self.y is not None:
-                yb = self.y[sl].copy()
-                #yb[yb == 0.0] = - 0.5
-                #yb[yb == 4.0] = 5.0
-                #yb += np.random.randn(*yb.shape) * 0.1
+                yb = self.y[sl]
             else:
                 yb = None
             yield self.transform(Xb, yb)
@@ -204,7 +207,7 @@ def get_nonlinearity():
 def rrange(a, b):
     return (np.random.rand() + a) * (b - a)
 
-def get_estimator(n_features, eval_size=0.1, randomize=False):
+def get_estimator(n_features, eval_size=0.1, randomize=False, test=False):
     n_hidden_1 = np.random.randint(12, 33) * 2 if randomize else N_HIDDEN_1
     n_hidden_2 = np.random.randint(12, 33) * 2 if randomize else N_HIDDEN_2
     nl1 = get_nonlinearity() if randomize else rectify
@@ -226,7 +229,8 @@ def get_estimator(n_features, eval_size=0.1, randomize=False):
     args = dict(
         #update=nesterov_momentum,
         update=adam,
-        update_learning_rate=theano.shared(float32(START_LR)),
+        update_learning_rate=theano.shared(
+            float32(START_LR / 10.0 if test else START_LR)),
         #update_momentum=theano.shared(float32(START_MOM)),
 
         batch_iterator_train=ResampleIterator(BATCH_SIZE),
@@ -237,7 +241,8 @@ def get_estimator(n_features, eval_size=0.1, randomize=False):
         eval_size=eval_size,
         custom_score=('kappa', util.kappa) if eval_size > 0.0 else None,
         on_epoch_finished = [
-            Schedule('update_learning_rate', SCHEDULE),
+            Schedule('update_learning_rate', 
+                     TEST_SCHEDULE if test else SCHEDULE),
         ],
         regression=REGRESSION,
         max_epochs=N_ITER,
@@ -323,78 +328,87 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
     # 
     log_labels = np.log(labels + 1)
 
-    if not predict:
-        print("feature matrix {}".format(X_train.shape))
+    print("feature matrix {}".format(X_train.shape))
 
-        y_preds = []
-        y_preds_train = []
-        #for d, X_train in zip(dirs, X_trains):
-        for X_train in X_trains:
-            for i in range(n_iter):
-                #print('dir', d)
-                print('iter {}'.format(i))
+    y_preds = []
+    y_preds_train = []
+    y_subs = []
+    #for d, X_train in zip(dirs, X_trains):
+    for X_train, X_test in zip(X_trains, X_tests):
+        for i in range(n_iter):
+            #print('dir', d)
+            print('iter {}'.format(i))
 
-                #a_std = np.argsort(np.std(X_train, 1))
-                #X_train[a_std[:1000]] = 0.0
+            #a_std = np.argsort(np.std(X_train, 1))
+            #X_train[a_std[:1000]] = 0.0
 
-                X = per_patient_reshape(X_train) if per_patient else X_train
+            X = per_patient_reshape(X_train) if per_patient else X_train
 
-                print('fitting split training set')
-                est = get_estimator(X.shape[1], randomize=RANDOMIZE)
-                est.fit(X, labels)
+            print('fitting split training set')
+            est = get_estimator(X.shape[1], randomize=RANDOMIZE)
+            est.fit(X, labels)
 
-                if transform:
-                    X_feat = est.transform(X)
-                    fname = os.path.join(
-                        BLEND_FEATURE_DIR,
-                        '{}.npy'.format(directory.split('/')[-1]))
+        
+            if predict:
+                Xt = per_patient_reshape(X_test) if per_patient else X_test
+                p_est = get_estimator(X.shape[1], eval_size=0.0, test=True)
+                print('reloading weights from fitted estimator')
+                p_est.load_params_from(est)
+                p_est.fit(X, labels)
+                y_subs.append(p_est.predict(Xt).ravel())
 
-                    np.save(fname, X_feat)
-                    print("saved transform to {}".format(fname))
+            #if transform:
+            #    X_feat = est.transform(X)
+            #    fname = os.path.join(
+            #        BLEND_FEATURE_DIR,
+            #        '{}.npy'.format(directory.split('/')[-1]))
 
-                y_pred_train = est.predict(X).ravel()
-                y_preds_train.append(y_pred_train)
+            #    np.save(fname, X_feat)
+            #    print("saved transform to {}".format(fname))
 
-                y_pred = est.predict(X[te]).ravel()
-                #y_pred = est.predict_proba(X[te])
-                y_preds.append(y_pred)
-                y_pred = np.mean(y_preds, axis=0)
-                #y_pred = np.dot(np.mean(y_preds, axis=0), np.arange(5))
+            y_pred_train = est.predict(X).ravel()
+            y_preds_train.append(y_pred_train)
+
+            y_pred = est.predict(X[te]).ravel()
+            #y_pred = est.predict_proba(X[te])
+            y_preds.append(y_pred)
+            y_pred = np.mean(y_preds, axis=0)
+            #y_pred = np.dot(np.mean(y_preds, axis=0), np.arange(5))
 
 
-                np.save('preds.npy', np.array(y_preds).T)
-                np.save('preds_train.npy', np.array(y_preds_train).T)
+            np.save('preds.npy', np.array(y_preds).T)
+            np.save('preds_train.npy', np.array(y_preds_train).T)
 
-                # level 4 is very difficult to get right, only require it to 
-                # occur in one of the fits
-                #from scipy.stats import mode
-                #y_pred, _ = mode(np.round(y_preds), axis=0)
-                #y_pred = y_pred.squeeze()
-                #y_pred = np.mean(np.exp(y_preds), axis=0) - 1
-                #y_max = np.max(y_preds, axis=0)
-                #y_pred[(y_pred >= 3.0) & (y_max >= 3.75)] = 4.0
+            # level 4 is very difficult to get right, only require it to 
+            # occur in one of the fits
+            #from scipy.stats import mode
+            #y_pred, _ = mode(np.round(y_preds), axis=0)
+            #y_pred = y_pred.squeeze()
+            #y_pred = np.mean(np.exp(y_preds), axis=0) - 1
+            #y_max = np.max(y_preds, axis=0)
+            #y_pred[(y_pred >= 3.0) & (y_max >= 3.75)] = 4.0
 
-                y_pred  = np.clip(np.round(y_pred).astype(int),
-                                  np.min(labels), np.max(labels))
+            y_pred  = np.clip(np.round(y_pred).astype(int),
+                              np.min(labels), np.max(labels))
 
-                #if len(y_preds) >= 2:
-                #    w, kappa = optimize_weights(y_preds_train, labels)
-                #    print('best weights: ', w)
-                #    print('best kappa: ', kappa)
-                #    y_pred = average(w, y_preds)
-                #    y_pred  = np.clip(np.round(y_pred).astype(int),
-                #                      np.min(labels), np.max(labels))
-                #    #print('best kappa treshholds', tresh)
-                #    #print('best kappa train', kappa)
-                #    #y_pred = labels_from_thresholds(tresh, y_pred)
+            #if len(y_preds) >= 2:
+            #    w, kappa = optimize_weights(y_preds_train, labels)
+            #    print('best weights: ', w)
+            #    print('best kappa: ', kappa)
+            #    y_pred = average(w, y_preds)
+            #    y_pred  = np.clip(np.round(y_pred).astype(int),
+            #                      np.min(labels), np.max(labels))
+            #    #print('best kappa treshholds', tresh)
+            #    #print('best kappa train', kappa)
+            #    #y_pred = labels_from_thresholds(tresh, y_pred)
 
-                #    #print(labels[te].ravel().shape, y_pred.shape)
-                #    print('kappa', i, util.kappa(labels[te], y_pred))
-                #    print(confusion_matrix(labels[te], y_pred))
+            #    #print(labels[te].ravel().shape, y_pred.shape)
+            #    print('kappa', i, util.kappa(labels[te], y_pred))
+            #    print(confusion_matrix(labels[te], y_pred))
 
-                #print(labels[te].ravel().shape, y_pred.shape)
-                print('kappa', i, util.kappa(labels[te], y_pred))
-                print(confusion_matrix(labels[te], y_pred))
+            #print(labels[te].ravel().shape, y_pred.shape)
+            print('kappa', i, util.kappa(labels[te], y_pred))
+            print(confusion_matrix(labels[te], y_pred))
         
         #w, kappa = optimize_weights(y_preds, labels[te])
         #print('best weights {}'.format(w))
@@ -402,34 +416,18 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
 
     if predict:
 
-        y_preds = []
-        y_preds_train = []
-        for i in range(n_iter):
-            for X_train, X_test in zip(X_trains, X_tests):
-                print('fitting full training set')
-                X = per_patient_reshape(X_train) if per_patient else X_train
-                Xt = per_patient_reshape(X_test) if per_patient else X_test
-                est = get_estimator(X.shape[1], eval_size=0.0, 
-                                    randomize=RANDOMIZE)
-                est.fit(X, labels)
-                y_pred = est.predict(Xt).ravel()
-                y_preds.append(y_pred)
-
-                #y_pred_train = est.predict(X).ravel()
-                #y_preds_train.append(y_pred_train)
-                #tresh, kappa = get_best_thresholds(np.mean(y_preds_train,
-                #                                           axis=0), 
-                #                                   labels)
-                #print('best kappa treshholds', tresh)
-                #print('best kappa train', kappa)
-
-        # best weights for validation set
-        #w = [0.0893869, 0.17396903, 0.36648483, 0.37015924]
-
-        #tresh, kappa = get_best_thresholds(np.mean(y_preds_train, axis=0), 
-        #                                   labels)
-        #print('best kappa treshholds', tresh)
-        #print('best kappa train', kappa)
+        y_preds = y_subs
+        #y_preds_train = []
+        #for i in range(n_iter):
+        #    for X_train, X_test in zip(X_trains, X_tests):
+        #        print('fitting full training set')
+        #        X = per_patient_reshape(X_train) if per_patient else X_train
+        #        Xt = per_patient_reshape(X_test) if per_patient else X_test
+        #        est = get_estimator(X.shape[1], eval_size=0.0, 
+        #                            randomize=RANDOMIZE)
+        #        est.fit(X, labels)
+        #        y_pred = est.predict(Xt).ravel()
+        #        y_preds.append(y_pred)
 
         y_pred = np.mean(y_preds, axis=0)
         #y_pred = average(w, y_preds)
