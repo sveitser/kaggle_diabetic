@@ -225,8 +225,7 @@ def get_estimator(n_features, eval_size=0.1, randomize=False, test=False):
                       'W': init.Orthogonal('relu'), 
                       'b': init.Constant(0.1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
-        #(DenseLayer, {'num_units': 5, 'nonlinearity': softmax}),
-        (DenseLayer, {'num_units': 1}),
+        (DenseLayer, {'num_units': 1, 'nonlinearity': None}),
     ]
     args = dict(
         #update=nesterov_momentum,
