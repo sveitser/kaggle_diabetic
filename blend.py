@@ -45,7 +45,7 @@ STOP_MOM = 0.95
 #INIT_LEARNING_RATE = 0.00002
 START_LR = 0.0005
 END_LR = START_LR * 0.001
-L1 = 1e-4
+L1 = 2e-5
 L2 = 0.005
 N_ITER = 100
 PATIENCE = 20
@@ -218,10 +218,12 @@ def get_estimator(n_features, eval_size=0.1, randomize=False, test=False):
         (InputLayer, {'shape': (None, n_features)}),
         #(DropoutLayer, {}),
         (DenseLayer, {'num_units': n_hidden_1, 'nonlinearity': nl1,
-                      'W': INIT_W, 'b':INIT_B}),
+                      'W': init.Orthogonal('relu'), 
+                      'b': init.Constant(0.1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
         (DenseLayer, {'num_units': n_hidden_2, 'nonlinearity': nl2,
-                      'W': INIT_W, 'b':INIT_B}),
+                      'W': init.Orthogonal('relu'), 
+                      'b': init.Constant(0.1)}),
         (FeaturePoolLayer, {'pool_size': 2}),
         #(DenseLayer, {'num_units': 5, 'nonlinearity': softmax}),
         (DenseLayer, {'num_units': 1}),
