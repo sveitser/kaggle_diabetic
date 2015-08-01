@@ -1,11 +1,24 @@
-# Kaggle Diabetic Retinopathy Detection
+z Kaggle Diabetic Retinopathy Detection
 
-### Dependencies
-Install dependencies.
+### Installation
+Install dependencies via,
 ```
-bash install.sh
+pip install -r requirements.txt
 ```
 Extract train/test images to ```data/train``` and ```data/test``` respectively.
+
+### Usage
+A bash script to generate our final solution can be found in 
+`make_kaggle_solution.sh`.
+
+#### Scripts
+All these python scripts can be invoced with `-h` to display a brief help
+message.
+- `convert.py` crops and resizes images
+- `train_nn.py` trains convolutional networks
+- `transform.py` extracts features from trained convolutional networks
+- `blend.py` blends features, optionally using inputs from both patient eyes
+
 
 ```bash
 python NAME_OF_SCRIPT.py --help            # display command line parameters

@@ -3,13 +3,10 @@ import os
 from multiprocessing.pool import Pool
 
 import click
-import mahotas as mh
 import numpy as np
-from sklearn.decomposition import PCA
 
-import augment
+import data
 import util
-
 
 def process(fname):
     img = util.load_image_uint_one(fname)
@@ -37,15 +34,14 @@ def main(directory):
                            for f in batch])
         X = images.transpose(0, 2, 3, 1).reshape(-1, 3)
         cov = np.dot(X.T, X) / X.shape[0]
-        print(cov)
         U, S, V = np.linalg.svd(cov)
         ev = np.sqrt(S)
         Us.append(U)
         evs.append(ev)
-        print(U)
-        print(ev)
 
+    print('U')
     print(np.mean(Us, axis=0))
+    print('eigenvalues')
     print(np.mean(evs, axis=0))
 
 if __name__ == '__main__':
