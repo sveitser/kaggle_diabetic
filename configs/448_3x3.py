@@ -12,13 +12,6 @@ cnf = {
     'test_dir': 'data/test_medium',
     'batch_size_train': 48,
     'batch_size_test': 8,
-    'mean': [ 108.73683167, 75.54026794,  53.80962753],
-    'std': [ 70.44262987, 51.35997035, 42.51656026],
-    'rotate': True,
-    'learning_rate': 0.0005,
-    'balance': 0.2,
-    'patience': 100,
-    'regression': True,
 }
 
 layers = [
@@ -52,8 +45,6 @@ layers = [
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),
     (FeaturePoolLayer, {'pool_size': 2}),
-    (DenseLayer, {'num_units': N_TARGETS if cnf['regression'] else N_CLASSES,
-                  'nonlinearity': rectify if cnf['regression'] else softmax}),
 ]
 
 config = Config(layers=layers, cnf=cnf)

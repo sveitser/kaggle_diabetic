@@ -12,9 +12,6 @@ cnf = {
     'test_dir': 'data/test_res',
     'batch_size_train': 64,
     'batch_size_test': 32,
-    'rotate': True,
-    'learning_rate': 0.003,
-    'balance': 0.1,
 }
 
 def cp(num_filters, *args, **kwargs):

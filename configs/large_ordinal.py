@@ -11,10 +11,6 @@ cnf = {
     'train_dir': 'data/train_res',
     'test_dir': 'data/test_res',
     'batch_size': 128,
-    'rotate': True,
-    'learning_rate': 0.005,
-    'balance': 0.1,
-    'regression': False,
     'ordinal': True,
 }
 
@@ -42,8 +38,6 @@ layers = [
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),
     (FeaturePoolLayer, {'pool_size': 2}),
-    (DenseLayer, {'num_units': N_TARGETS if cnf['regression'] else N_CLASSES,
-                  'nonlinearity': rectify if cnf['regression'] else sigmoid}),
 ]
 
 config = Config(layers=layers, cnf=cnf)

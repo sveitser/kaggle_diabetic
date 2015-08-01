@@ -7,7 +7,6 @@ cnf = {
     'h': 256,
     'train_dir': 'data/train_medium',
     'batch_size': 128,
-    #'rotate': True,
 }
 
 

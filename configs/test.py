@@ -11,9 +11,6 @@ cnf = {
     'train_dir': 'data/train_res',
     'test_dir': 'data/test_res',
     'batch_size': 128,
-    'rotate': False,
-    'learning_rate': 0.005,
-    'balance': 0.5,
     'balance_ratio': 0.5,
 }
 

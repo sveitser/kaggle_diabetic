@@ -11,9 +11,6 @@ cnf = {
     'train_dir': 'data/train_res',
     'test_dir': 'data/test_res',
     'batch_size': 128,
-    'rotate': True,
-    'learning_rate': 0.005,
-    'balance': 0.1,
     'aug_params': {
         'zoom_range': (1 / 1.1, 1.1),
         'rotation_range': (0, 360),

@@ -12,11 +12,6 @@ cnf = {
     'test_dir': 'data/test_medium',
     'batch_size_train': 48,
     'batch_size_test': 8,
-    'rotate': True,
-    'learning_rate': 0.005,
-    'balance': 0.2,
-    'patience': 100,
-    'regression': True,
 }
 
 def cp(num_filters, *args, **kwargs):
@@ -57,8 +52,6 @@ layers = [
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, {'num_units': 2048}),
     (FeaturePoolLayer, {'pool_size': 2}),
-    (DenseLayer, {'num_units': N_TARGETS if cnf['regression'] else N_CLASSES,
-                  'nonlinearity': rectify if cnf['regression'] else softmax}),
 ]
 
 config = Config(layers=layers, cnf=cnf)

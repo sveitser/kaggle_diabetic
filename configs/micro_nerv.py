@@ -8,15 +8,6 @@ cnf = {
     'h': 224,
     'train_dir': 'data/train_medium',
     'batch_size': 128,
-    #'mean': [112.26],
-    #'std': [26.63],
-    'mean': [ 108.73683167, 75.54026794,  53.80962753],
-    'std': [ 70.44262987, 51.35997035, 42.51656026],
-    'learning_rate': 0.005,
-    'regression': True,
-    'n_classes': 3,
-    'rotate': True,
-    'balance': 0.4,
 }
 
 layers = [
@@ -67,9 +58,6 @@ layers = [
 #    (DropoutLayer, {'p': 0.5}),
 #    (DenseLayer, {'num_units': 1024}),
 #    (FeaturePoolLayer, {'pool_size': 2}),
-#    (DenseLayer, {'num_units': N_TARGETS if cnf['regression'] 
-#                                      else cnf.get('n_classes', N_CLASSES),
-#                         'nonlinearity': rectify if cnf['regression'] 
 #                                         else softmax}),
 #]
 

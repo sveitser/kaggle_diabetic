@@ -9,9 +9,6 @@ cnf = {
     'h': 224,
     'train_dir': 'data/train_res',
     'batch_size': 112,
-    'rotate': True,
-    'learning_rate': 0.003,
-    'balance': 0.2,
 }
 
 layers = [
