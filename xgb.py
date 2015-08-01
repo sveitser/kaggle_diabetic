@@ -42,8 +42,8 @@ def evalkappa(preds, dtrain):
 @click.option('--n_iter', default=1)
 def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
-    model = util.load_module(cnf).model
-    files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
+    config = util.load_module(cnf).config
+    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
     names = util.get_names(files)
     labels = util.get_labels(names)
 
@@ -162,7 +162,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
                           np.min(labels), np.max(labels))
 
         submission_filename = util.get_submission_filename()
-        files = util.get_image_files(model.get('test_dir', TEST_DIR))
+        files = util.get_image_files(config.get('test_dir', TEST_DIR))
         names = util.get_names(files)
         image_column = pd.Series(names, name='image')
         level_column = pd.Series(y_pred, name='level')

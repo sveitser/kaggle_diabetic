@@ -45,19 +45,19 @@ def plot_conv_bias(layer, figsize=(12, 12)):
 @click.option('--weights', is_flag=True, default=False)
 def plot(n, cnf, weights):
 
-    model = util.load_module(cnf).model
+    config = util.load_module(cnf).config
 
-    files = util.get_image_files(model.get('train_dir'))
-    net = nn.create_net(model)
-    net.load_params_from(model.weights_file)
+    files = util.get_image_files(config.get('train_dir'))
+    net = nn.create_net(config)
+    net.load_params_from(config.weights_file)
 
     if weights:
-        plot_weights(net, model)
+        plot_weights(net, config)
     else:
         fname = files[n]
         patient = util.get_names(files)[n]
 
-        x = augment.load(fname, **model.cnf)
+        x = augment.load(fname, **config.cnf)
         x = x[np.newaxis, ...]
         print(x.shape)
 
@@ -65,19 +65,19 @@ def plot(n, cnf, weights):
             if 'conv' in name:
                 print("plotting layer {}".format(name))
                 visualize.plot_conv_activity(layer, x, figsize=(32, 18)),
-                plt.savefig('fig/{}_{}_{}.png'.format(model.cnf['name'],
+                plt.savefig('fig/{}_{}_{}.png'.format(config.cnf['name'],
                                                       patient, name))
 
 
-def plot_weights(net, model):
+def plot_weights(net, config):
     for name, layer in net.layers_.items():
         if 'conv' in name:
             print("plotting layer {}".format(name))
             visualize.plot_conv_weights(layer)
-            plt.savefig('fig/weights_{}_{}.png'.format(model.cnf['name'],
+            plt.savefig('fig/weights_{}_{}.png'.format(config.cnf['name'],
                                                        name))
             plot_conv_bias(layer)
-            plt.savefig('fig/bias_{}_{}.png'.format(model.cnf['name'],
+            plt.savefig('fig/bias_{}_{}.png'.format(config.cnf['name'],
                                                        name))
 
         

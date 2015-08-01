@@ -13,17 +13,17 @@ def predict(cnf, weights):
 
     weights = str(weights)
 
-    model = util.load_module(cnf).model
+    config = util.load_module(cnf).config
 
     submission_filename = util.get_submission_filename()
 
-    files = np.array(util.get_image_files(model.get('test_dir', TEST_DIR)))
+    files = np.array(util.get_image_files(config.get('test_dir', TEST_DIR)))
     names = util.get_names(files)
 
-    net = create_net(model)
+    net = create_net(config)
 
     print("loading trained network weights")
-    #net.load_params_from(model.get('weights_file', WEIGHTS))
+    #net.load_params_from(config.get('weights_file', WEIGHTS))
     net.load_params_from(weights)
 
     preds = []

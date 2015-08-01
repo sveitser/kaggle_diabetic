@@ -253,7 +253,7 @@ class neural_network:
 
 
             batch_iterator_train=TrainIterator(batch_size=50),
-            #  model, batch_size=model.get('batch_size_train', BATCH_SIZE),
+            #  config, batch_size=config.get('batch_size_train', BATCH_SIZE),
             #  deterministic=False, resample=True),
 
             input_shape=(None, 3, pixels, pixels),
@@ -311,8 +311,8 @@ class neural_network:
         input_var = T.tensor4('inputs')
         target_var = T.ivector('targets')
 
-        # Create neural network model (depending on first command line parameter)
-        print("Building model and compiling functions...")
+        # Create neural network config (depending on first command line parameter)
+        print("Building config and compiling functions...")
 
         network = self.create_cnn(pixels)
 

@@ -7,7 +7,7 @@ import numpy as np
 
 from sklearn.ensemble import *
 from sklearn.svm import *
-from sklearn import linear_model
+from sklearn import linear_config
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler

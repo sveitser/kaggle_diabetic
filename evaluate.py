@@ -21,19 +21,19 @@ def fit(cnf, weights):
     if weights is not None:
         weights = str(weights)
 
-    model = util.load_module(cnf).model
+    config = util.load_module(cnf).config
 
-    model.cnf['batch_size'] = 128
+    config.cnf['batch_size'] = 128
 
-    files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
+    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
     names = util.get_names(files)
     labels = util.get_labels(names)
 
     f_train, f_test, y_train, y_test = util.split(files, labels)
 
-    net = nn.create_net(model, tta=False)
+    net = nn.create_net(config, tta=False)
     if weights is None:
-        net.load_params_from(model.weights_file)
+        net.load_params_from(config.weights_file)
     else:
         net.load_params_from(weights)
 

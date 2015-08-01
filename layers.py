@@ -58,7 +58,7 @@ class SharedRelu(LeakyRectify):
 
 
 def conv_params(num_filters, filter_size=(3, 3), border_mode='same',
-         nonlinearity=very_leaky_rectify, W=init.Orthogonal(gain=1.0),
+         nonlinearity=leaky_rectify, W=init.Orthogonal(gain=1.0),
          b=init.Constant(0.05), untie_biases=True, **kwargs):
     args = {
         'num_filters': num_filters,
@@ -83,7 +83,7 @@ def pool_params(pool_size=3, stride=(2, 2), **kwargs):
     args.update(kwargs)
     return args
 
-def dense_params(num_units, nonlinearity=very_leaky_rectify, **kwargs):
+def dense_params(num_units, nonlinearity=leaky_rectify, **kwargs):
     args = {
         'num_units': num_units, 
         'nonlinearity': nonlinearity,
@@ -100,7 +100,7 @@ class RMSPoolLayer(Pool2DLayer):
         super(RMSPoolLayer, self).__init__(incoming, pool_size,  stride,
                                            pad, **kwargs)
         self.epsilon = epsilon
-        del self.mode
+        #del self.mode # TODO check if this is needed
 
     def get_output_for(self, input, *args, **kwargs):
         out = dnn.dnn_pool(T.sqr(input), self.pool_size, self.stride, 

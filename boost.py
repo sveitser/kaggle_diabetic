@@ -9,10 +9,10 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix, make_scorer
 from sklearn.grid_search import GridSearchCV
-from xgboost import XGBRegressor, XGBClassifier
+#from xgboost import XGBRegressor, XGBClassifier
 from scipy.optimize import minimize
 
-from sklearn import linear_model
+from sklearn import linear_config
 from sklearn.ensemble import *
 from sklearn.svm import *
 from sklearn.lda import LDA
@@ -60,7 +60,7 @@ def get_xgb(**kwargs):
     return p, {'fit__' + k: v for k, v in grid.items()}
 
 def get_ridge(**kwargs):
-    return linear_model.Ridge(**kwargs)
+    return linear_config.Ridge(**kwargs)
 
 def get_lda(**kwargs):
     return make_pipeline(LDA(n_components=100), get_xgb())
@@ -118,38 +118,6 @@ def get_sample_weights(y):
     return (2.0 + w) / 3.0
 
 
-def load_transform(directory=FEATURE_DIR, test=False, transform_file=None):
-
-    if transform_file is None:
-        tfs = sorted([os.path.join(directory, f) 
-                      for f in os.listdir(directory) if f.endswith('npy')])
-    else:
-        tfs = [transform_file]
-
-    if test:
-        tfs = [tf for tf in tfs if 'test' in tf]
-    else:
-        tfs = [tf for tf in tfs if 'test' not in tf]
-
-    print('loading transform files')
-    pprint.pprint(tfs)
-
-    data = [np.load(open(tf, 'rb')) for tf in tfs]
-    data = [t.reshape([t.shape[0], -1]) for t in data]
-    #data = [PCA(n_components=100).fit_transform(x) for x in data]
-    return np.hstack(data)
-
-    #t0 = data[0]
-    #t1 = 2*data[1] - data[0]
-    #t2 = 3*data[2] - 2*t1
-    #print(t0.mean(), t1.mean(), t2.mean())
-    ##data = np.concatenate([data[0][np.newaxis, ...], np.diff(data, axis=0)], axis=0)
-    #data = np.vstack([t0, t1, t2])
-    #print(data.shape)
-    #data = data.reshape([data.shape[0]*data.shape[1], data.shape[2],
-    #                     data.shape[3], data.shape[4]])
-    #print(data.shape)
-    #return data.reshape(data.shape[0], -1)
 
 
 def rescale_labels(y_pred_f, y_train, alpha=0.5):
@@ -234,8 +202,8 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
         get_estimator = get_svr
         n_jobs = 2
 
-    model = util.load_module(cnf).model
-    files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
+    config = util.load_module(cnf).config
+    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
     names = util.get_names(files)
     labels = util.get_labels(names)
 
@@ -307,7 +275,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
                           np.min(labels), np.max(labels))
 
         submission_filename = util.get_submission_filename()
-        files = util.get_image_files(model.get('test_dir', TEST_DIR))
+        files = util.get_image_files(config.get('test_dir', TEST_DIR))
         names = util.get_names(files)
         image_column = pd.Series(names, name='image')
         level_column = pd.Series(y_pred, name='level')

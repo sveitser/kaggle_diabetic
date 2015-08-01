@@ -16,49 +16,6 @@ U = np.array([[-0.56543481, 0.71983482, 0.40240142],
               [-0.56694071, -0.6935729, 0.44423429]] ,dtype=np.float32)
 EV = np.array([1.65513492, 0.48450358, 0.1565086], dtype=np.float32)
 
-def crop_random(img, w=W, h=H):
-    x_offset, y_offset = [np.random.randint(dim - s)
-                          for dim, s in zip(img.shape[1:], [w, h])]
-    return img[:, x_offset: x_offset + w, y_offset: y_offset + h].copy()
-
-
-def crop(img, w=W, h=H):
-    lx, ly = img.shape[1:]
-    x0, x1 = (lx - w) // 2, lx - (lx - w + 1) // 2
-    y0, y1 = (ly - h) // 2, ly - (ly - h + 1) // 2
-    cropped = img[:, x0: x1, y0: y1]
-    return cropped.copy()
-
-
-def rgb_mix(img):
-    r = 1.0 + 0.3 * (np.random.rand(3).astype(np.float32) - 0.5)
-    return img * r[:, np.newaxis, np.newaxis]
-
-
-def rotate_uniform(img):
-    return rotate(img, 360 * np.random.rand(), axes=(1, 2),
-                  reshape=False, order=0)
-
-
-def augment(Xb):
-    return np.array([crop_random(img) for img in Xb], dtype=np.float32)
-
-
-def rot90(img, n=None):
-    n = np.randint(4) if n is None else n
-    return np.rot90(img.transpose(1, 2, 0), k=n).transpose(2, 0, 1)
-
-
-def flip(img, n=None):
-    n = np.randint(4) if n is None else n
-    if n == 1:
-        img = img[:, ::-1,  :]
-    elif n == 2:
-        img = img[:, :, ::-1]
-    elif n == 3:
-        img = img[:, ::-1, ::-1]
-    return img
-
 
 default_augmentation_params = {
     'zoom_range': (1 / 1.1, 1.1),
@@ -79,18 +36,7 @@ no_augmentation_params = {
     'allow_stretch': False,
 }
 
-
-no_augmentation_params_gaussian = {
-    'zoom_std': 0.0,
-    'rotation_range': (0, 0),
-    'shear_std': 0.0,
-    'translation_std': 0.0,
-    'do_flip': False,
-    'stretch_std': 0.0,
-}
-
-# timings for in 512px out 448px: order=0: 19.8ms, order=1 26ms
-# unsure if order=0 has negative impact on training
+# timings for in 512px out 448px: order=0: 19.8ms, order=1: 26ms
 def fast_warp(img, tf, output_shape=(W, H), mode='constant', order=0):
     """
     This wrapper function is faster than skimage.transform.warp

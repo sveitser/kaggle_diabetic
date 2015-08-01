@@ -32,45 +32,23 @@ class Log(object):
               help='Path or name of configuration module.')
 @click.option('--weights_from', default=None,
               help='Path to initial weights file.')
-@click.option('--retrain_until', default=None, type=float,
-              help='Retrain until training loss reaches threshold.')
-def main(cnf, weights_from, retrain_until):
+def main(cnf, weights_from):
 
-    model = util.load_module(cnf).model
+    config = util.load_module(cnf).config
 
     if weights_from is None:
-        weights_from = model.weights_file
+        weights_from = config.weights_file
     else:
         weights_from = str(weights_from)
 
-    files = util.get_image_files(model.get('train_dir', TRAIN_DIR))
+    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
 
     names = util.get_names(files)
     y = util.get_labels(names).astype(np.float32)
 
-    from collections import Counter
-    print(Counter(y))
-
-    #if retrain_until is None:
     f_train, f_test, y_train, y_test = util.split(files, y)
-    #else:
-    #    f_train, f_test = files, y
 
-    print(len(f_train))
-    print(len(f_test))
-    #f_train, f_test, y_train, y_test = util.split(l_files, y2)
-
-    # add load 50% pseudo label images
-    #test_files, _ = util.split(util.get_image_files(TEST_DIR), 
-    #                           test_size=len(f_train) / 2)
-    #test_names = util.get_names(test_files)
-    #pseudo_labels = util.get_labels(test_names,
-    #                                PSEUDO_LABEL_FILE).astype(np.float32)
-
-    #f_train = np.hstack([f_train, test_files])
-    #y_train = np.hstack([y_train, pseudo_labels])
-
-    net = create_net(model, retrain_until=retrain_until)
+    net = create_net(config)
 
     try:
         net.load_params_from(weights_from)
@@ -87,10 +65,7 @@ def main(cnf, weights_from, retrain_until):
     print("ConvNet quadratic weighted kappa {}".format(
         quadratic_weighted_kappa(y_test, y_pred)))
 
+
 if __name__ == '__main__':
-    #try:
-    #    main()
-    #finally:
-    #    iterator.delete_shared_array()
     main()
 
