@@ -15,10 +15,10 @@ def predict(cnf, weights):
 
     config = util.load_module(cnf).config
 
-    submission_filename = util.get_submission_filename()
+    submission_filename = data.get_submission_filename()
 
-    files = np.array(util.get_image_files(config.get('test_dir', TEST_DIR)))
-    names = util.get_names(files)
+    files = np.array(data.get_image_files(config.get('test_dir', TEST_DIR)))
+    names = data.get_names(files)
 
     net = create_net(config)
 
@@ -37,7 +37,7 @@ def predict(cnf, weights):
     #Xt = net.transform(files)
     
     #print("loading estimator")
-    #estimator = util.pickle.load(open(ESTIMATOR_FILENAME, 'rb'))
+    #estimator = data.pickle.load(open(ESTIMATOR_FILENAME, 'rb'))
 
     #print("making predictions on test set")
     #y_pred = np.round(estimator.predict(Xt)).astype(int)

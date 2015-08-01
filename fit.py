@@ -13,7 +13,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from quadratic_weighted_kappa import quadratic_weighted_kappa
 import util
-from util import pickle
+from data import pickle
 
 from definitions import *
 
@@ -31,11 +31,11 @@ def eval(w, y_true, y_pred):
               help="Balancing ratio in [0, 1]. 0:unbalanced, 1:balanced.")
 def fit(balance):
 
-    files = util.get_image_files(TRAIN_DIR)
-    names = util.get_names(files)
-    labels = util.get_labels(names)
+    files = data.get_image_files(TRAIN_DIR)
+    names = data.get_names(files)
+    labels = data.get_labels(names)
 
-    f_train, f_test, y_train, y_test = util.split(files, labels)
+    f_train, f_test, y_train, y_test = data.split(files, labels)
 
     n_train = len(f_train)
     n_test = len(f_test)

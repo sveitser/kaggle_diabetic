@@ -52,7 +52,7 @@ class cnn():
         image_directory = '/media/stephan/12C3-91C8/Kaggle.com/diabetic_retinopathy/kaggle diabetic_/train_original/'
         input_only_left = True
         load_the_data = load_data(input_only_left,image_directory)
-        labels_images, image_size, loaded_images = load_the_data.load_labels_and_image_size()
+        labels_images, image_size, loaded_images = load_the_util.load_labels_and_image_size()
 
 
 
@@ -170,7 +170,7 @@ class load_data():
         labels_images, image_size = self.prepare_data(path_labels)
         loaded_images = self.load_images(labels_images)
         return labels_images,image_size, loaded_images
-        #load_the_data.load_images(labels_images)
+        #load_the_util.load_images(labels_images)
 
 
 
@@ -178,7 +178,7 @@ class load_data():
 #image_directory = '/media/stephan/12C3-91C8/Kaggle.com/diabetic_retinopathy/kaggle diabetic_/train_original/'
 #input_only_left = True
 #load_the_data = load_data(input_only_left,image_directory)
-#labels_images, image_size = load_the_data.load_labels_and_image_size()
+#labels_images, image_size = load_the_util.load_labels_and_image_size()
 
 # Idea Mathis
 # 1. Shuffle data

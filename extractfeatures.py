@@ -46,7 +46,7 @@ class extractfeatures():
                 # For the input , the original images from kaggle.com are used (and not the resized ones)
                 old_path = self.input_path + element + '.jpeg'
                 new_path = os.getcwd() + '/data/preprocessing/'  + element + '.jpeg'
-                shutil.copyfile(old_path, new_path)
+                shdata.copyfile(old_path, new_path)
             self.names_all_images=os.listdir(os.getcwd() + '/data/preprocessing/')
 
 

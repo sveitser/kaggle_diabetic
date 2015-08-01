@@ -43,9 +43,9 @@ def evalkappa(preds, dtrain):
 def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
 
     config = util.load_module(cnf).config
-    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
-    names = util.get_names(files)
-    labels = util.get_labels(names)
+    files = data.get_image_files(config.get('train_dir', TRAIN_DIR))
+    names = data.get_names(files)
+    labels = data.get_labels(names)
 
     X_train = load_transform(transform_file=transform_file)
 
@@ -62,11 +62,11 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         if per_patient:
             X_test = per_patient_reshape(X_test)
 
-    # util.split_indices split per patient by default now
-    tr, te = util.split_indices(labels)
+    # data.split_indices split per patient by default now
+    tr, te = data.split_indices(labels)
 
     dtrain = xgb.DMatrix(X_train[tr], label=labels[tr], 
-                         weight=util.get_weights(labels[tr],
+                         weight=data.get_weights(labels[tr],
                                                  weights=[1, 2, 1, 1, 1]))
     dtest = xgb.DMatrix(X_train[te], label=labels[te])
 
@@ -125,7 +125,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
             gs.fit(X_train, labels)
             pd.set_option('display.height', 500)
             pd.set_option('display.max_rows', 500)
-            df = util.grid_search_score_dataframe(gs)
+            df = data.grid_search_score_dataframe(gs)
             print(df)
             df.to_csv('grid_scores.csv')
             df.to_csv('grid_scores_{}.csv'.format(datetime.now().isoformat()))
@@ -161,9 +161,9 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter):
         y_pred  = np.clip(np.round(y_pred).astype(int),
                           np.min(labels), np.max(labels))
 
-        submission_filename = util.get_submission_filename()
-        files = util.get_image_files(config.get('test_dir', TEST_DIR))
-        names = util.get_names(files)
+        submission_filename = data.get_submission_filename()
+        files = data.get_image_files(config.get('test_dir', TEST_DIR))
+        names = data.get_names(files)
         image_column = pd.Series(names, name='image')
         level_column = pd.Series(y_pred, name='level')
         predictions = pd.concat([image_column, level_column], axis=1)

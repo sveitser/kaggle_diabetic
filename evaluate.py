@@ -25,11 +25,11 @@ def fit(cnf, weights):
 
     config.cnf['batch_size'] = 128
 
-    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
-    names = util.get_names(files)
-    labels = util.get_labels(names)
+    files = data.get_image_files(config.get('train_dir', TRAIN_DIR))
+    names = data.get_names(files)
+    labels = data.get_labels(names)
 
-    f_train, f_test, y_train, y_test = util.split(files, labels)
+    f_train, f_test, y_train, y_test = data.split(files, labels)
 
     net = nn.create_net(config, tta=False)
     if weights is None:

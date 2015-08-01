@@ -10,18 +10,15 @@ import numpy as np
 import pandas as pd
 import theano
 from sklearn.metrics import confusion_matrix, make_scorer
-from sklearn.grid_search import GridSearchCV
 
-
-from sklearn.pipeline import Pipeline, make_pipeline
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 
 from nolearn.lasagne import NeuralNet
 from lasagne.updates import *
 
 from ordinal_classifier import OrdinalClassifier
-import iterator, nn, util
+import data
+import nn
 
 from definitions import *
 from layers import *
@@ -64,7 +61,7 @@ class ResampleIterator(BatchIterator):
     def __iter__(self):
         n_samples = self.X.shape[0]
         bs = self.batch_size
-        indices = util.balance_per_class_indices(self.y.ravel(), 
+        indices = data.balance_per_class_indices(self.y.ravel(), 
                                                  weights=RESAMPLE_WEIGHTS)
         for i in range((n_samples + bs - 1) // bs):
             r = np.random.rand()
@@ -163,21 +160,21 @@ def get_estimator(n_features, eval_size=0.1):
 def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
 
     config = util.load_module(cnf).config
-    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
-    names = util.get_names(files)
-    labels = util.get_labels(names).astype(np.float32)[:, np.newaxis]
+    files = data.get_image_files(config.get('train_dir', TRAIN_DIR))
+    names = data.get_names(files)
+    labels = data.get_labels(names).astype(np.float32)[:, np.newaxis]
 
     #dirs = glob('data/features/*/') if directory is None else [directory]
     dirs = glob('{}/*/'.format(directory))
     files = glob('{}/*.*'.format(directory))
 
     if transform_file is None:
-        X_trains = [util.load_transform(directory=directory)
+        X_trains = [data.load_transform(directory=directory)
                     for directory in dirs] \
-                   + [util.load_transform(transform_file=transform_file)
+                   + [data.load_transform(transform_file=transform_file)
                       for transform_file in files]
     else:
-        X_trains = [util.load_transform(transform_file=transform_file)]
+        X_trains = [data.load_transform(transform_file=transform_file)]
 
     scalers = [StandardScaler() for _ in X_trains]
     X_trains = [scaler.fit_transform(X_train) 
@@ -186,11 +183,11 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
     if predict:
 
         if transform_file is None:
-            X_tests = [util.load_transform(directory=directory, test=True)
+            X_tests = [data.load_transform(directory=directory, test=True)
                        for directory in dirs]
         else:
             transform_file = transform_file.replace('train', 'test')
-            X_tests = [util.load_transform(test=True, 
+            X_tests = [data.load_transform(test=True, 
                                            transform_file=transform_file)]
 
         X_tests = [scaler.transform(X_test) 
@@ -200,8 +197,8 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
         #    X_tests = [per_patient_reshape(X_test).astype(np.float32)
         #               for X_test in X_tests]
 
-    # util.split_indices split per patient by default now
-    tr, te = util.split_indices(labels)
+    # data.split_indices split per patient by default now
+    tr, te = data.split_indices(labels)
 
     # 
     if not predict:
@@ -212,7 +209,7 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
         for i in range(n_iter):
             for X_train in X_trains:
 
-                X = util.per_patient_reshape(X_train) \
+                X = data.per_patient_reshape(X_train) \
                     if per_patient else X_train
                 print('iter {}'.format(i))
                 print('fitting split training set')
@@ -236,7 +233,7 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
             for X_train, X_test in zip(X_trains, X_tests):
                 print('fitting full training set')
                 X = per_patient_reshape(X_train) if per_patient else X_train
-                Xt = util.per_patient_reshape(X_test) \
+                Xt = data.per_patient_reshape(X_test) \
                     if per_patient else X_test
                 est = get_estimator(X.shape[1], eval_size=0.0, 
                                     randomize=RANDOMIZE)
@@ -261,9 +258,9 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
         y_pred  = np.clip(np.round(y_pred),
                           np.min(labels), np.max(labels)).astype(int)
 
-        submission_filename = util.get_submission_filename()
-        files = util.get_image_files(config.get('test_dir', TEST_DIR))
-        names = util.get_names(files)
+        submission_filename = data.get_submission_filename()
+        files = data.get_image_files(config.get('test_dir', TEST_DIR))
+        names = data.get_names(files)
         image_column = pd.Series(names, name='image')
         level_column = pd.Series(y_pred, name='level')
         predictions = pd.concat([image_column, level_column], axis=1)

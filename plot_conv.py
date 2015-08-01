@@ -47,7 +47,7 @@ def plot(n, cnf, weights):
 
     config = util.load_module(cnf).config
 
-    files = util.get_image_files(config.get('train_dir'))
+    files = data.get_image_files(config.get('train_dir'))
     net = nn.create_net(config)
     net.load_params_from(config.weights_file)
 
@@ -55,7 +55,7 @@ def plot(n, cnf, weights):
         plot_weights(net, config)
     else:
         fname = files[n]
-        patient = util.get_names(files)[n]
+        patient = data.get_names(files)[n]
 
         x = augment.load(fname, **config.cnf)
         x = x[np.newaxis, ...]

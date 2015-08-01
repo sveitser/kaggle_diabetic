@@ -8,7 +8,7 @@ from joblib import Parallel, delayed
 import numpy as np
 import SharedArray
 
-import augment
+import data
 import util
 
 from definitions import *
@@ -17,7 +17,7 @@ from definitions import *
 def load_shared(args):
     i, array_name, fname, kwargs = args
     array = SharedArray.attach(array_name)
-    array[i] = augment.load(fname, **kwargs)
+    array[i] = data.load_augment(fname, **kwargs)
 
 
 class BatchIterator(object):
@@ -122,7 +122,7 @@ class ResampleIterator(SharedIterator):
             class_weights = self.config.cnf['balance_weights'] * alpha \
                 + self.config.cnf['final_balance_weights'] * (1 - alpha)
             self.count += 1
-            indices = util.balance_per_class_indices(y, weights=class_weights)
+            indices = data.balance_per_class_indices(y, weights=class_weights)
             X = X[indices]
             y = y[indices]
         return super(ResampleIterator, self).__call__(X, y, transform=transform,

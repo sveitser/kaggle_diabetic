@@ -21,7 +21,7 @@ def process(fname):
 @click.option('--directory', default='data/train_medium')
 def main(directory):
 
-    filenames = util.get_image_files(directory)
+    filenames = data.get_image_files(directory)
     n = len(filenames)
 
     bs = 1000

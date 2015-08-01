@@ -70,7 +70,7 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
         print("transforming {}".format(directory))
         tic = time.time()
 
-        files = util.get_image_files(directory)
+        files = data.get_image_files(directory)
 
         Xs, Xs2 = None, None
 

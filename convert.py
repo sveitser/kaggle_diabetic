@@ -140,8 +140,8 @@ def main(directory, convert_directory, test, crop_size, extension, micro):
 
     if test:
         fun = convert_micro if micro else convert
-        names = util.get_names(filenames)
-        y = util.get_labels(names)
+        names = data.get_names(filenames)
+        y = data.get_labels(names)
         for f, level in zip(filenames, y):
             if level == 1:
                 try:

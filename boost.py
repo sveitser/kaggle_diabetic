@@ -78,7 +78,7 @@ def get_svr(**kwargs):
 
 
 def per_patient_split(labels):
-    a, b = util.split_indices(labels)
+    a, b = data.split_indices(labels)
     even = b[b%2 == 0]
     odd = b[b%2 != 0]
     te = np.array(list(set.union(set(even), set(even+1), set(odd), 
@@ -203,9 +203,9 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
         n_jobs = 2
 
     config = util.load_module(cnf).config
-    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
-    names = util.get_names(files)
-    labels = util.get_labels(names)
+    files = data.get_image_files(config.get('train_dir', TRAIN_DIR))
+    names = data.get_names(files)
+    labels = data.get_labels(names)
 
     X_train = load_transform(transform_file=transform_file)
 
@@ -222,7 +222,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
         if per_patient:
             X_test = per_patient_reshape(X_test)
 
-    tr, te = util.split_indices(labels)
+    tr, te = data.split_indices(labels)
 
     est, grid = get_estimator(n_iter=n_iter)
 
@@ -238,7 +238,7 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
             gs.fit(X_train, labels)
             pd.set_option('display.height', 500)
             pd.set_option('display.max_rows', 500)
-            df = util.grid_search_score_dataframe(gs)
+            df = data.grid_search_score_dataframe(gs)
             print(df)
             df.to_csv('grid_scores.csv')
             df.to_csv('grid_scores_{}.csv'.format(datetime.now().isoformat()))
@@ -274,9 +274,9 @@ def fit(cnf, predict, grid_search, per_patient, transform_file, n_iter,
         y_pred  = np.clip(np.round(y_pred).astype(int),
                           np.min(labels), np.max(labels))
 
-        submission_filename = util.get_submission_filename()
-        files = util.get_image_files(config.get('test_dir', TEST_DIR))
-        names = util.get_names(files)
+        submission_filename = data.get_submission_filename()
+        files = data.get_image_files(config.get('test_dir', TEST_DIR))
+        names = data.get_names(files)
         image_column = pd.Series(names, name='image')
         level_column = pd.Series(y_pred, name='level')
         predictions = pd.concat([image_column, level_column], axis=1)

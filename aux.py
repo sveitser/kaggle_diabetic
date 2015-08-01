@@ -6,7 +6,7 @@ import util
 @click.command()
 @click.option('--directory', default='data/train_res')
 def aux(directory):
-    files = util.get_image_files(directory)
+    files = data.get_image_files(directory)
     means = []
     maxes = []
     stds = []

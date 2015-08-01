@@ -25,6 +25,7 @@ from theano import tensor as T
 
 from definitions import *
 from quadratic_weighted_kappa import quadratic_weighted_kappa
+import data
 import util
 import iterator
 
@@ -33,7 +34,7 @@ def float32(k):
     return np.cast['float32'](k)
 
 
-def create_net(config):
+def create_net(config, **kwargs):
     args = {
         'layers': config.layers,
         'batch_iterator_train': iterator.ResampleIterator(
@@ -126,7 +127,7 @@ class Net(NeuralNet):
 
     def train_test_split(self, X, y, eval_size):
         if eval_size:
-            X_train, X_valid, y_train, y_valid = util.split(
+            X_train, X_valid, y_train, y_valid = data.split(
                 X, y, test_size=eval_size)
         else:
             X_train, y_train = X, y

@@ -9,7 +9,8 @@ from sklearn import cross_validation
 from quadratic_weighted_kappa import quadratic_weighted_kappa
 
 from definitions import *
-import iterator, util
+import data
+import util
 from nn import create_net
 
 
@@ -41,12 +42,12 @@ def main(cnf, weights_from):
     else:
         weights_from = str(weights_from)
 
-    files = util.get_image_files(config.get('train_dir', TRAIN_DIR))
+    files = data.get_image_files(config.get('train_dir', TRAIN_DIR))
 
-    names = util.get_names(files)
-    y = util.get_labels(names).astype(np.float32)
+    names = data.get_names(files)
+    y = data.get_labels(names).astype(np.float32)
 
-    f_train, f_test, y_train, y_test = util.split(files, y)
+    f_train, f_test, y_train, y_test = data.split(files, y)
 
     net = create_net(config)
 
