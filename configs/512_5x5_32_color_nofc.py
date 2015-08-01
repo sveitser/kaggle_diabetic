@@ -55,8 +55,7 @@ layers = [
     #(Conv2DLayer, conv_params(384)),
     (RMSPoolLayer, pool_params(stride=(2, 2))), # pad to get even x/y
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
-                         'nonlinearity': rectify if REGRESSION else softmax}),
+    (DenseLayer, {'num_units': 1}),
 ]
 
 

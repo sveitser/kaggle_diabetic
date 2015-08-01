@@ -36,8 +36,7 @@ layers = [
     (Conv2DLayer, conv_params(512, filter_size=(5, 5))),
     (RMSPoolLayer, pool_params(pool_size=(6, 6), stride=((6, 6)))), # pad to get even x/y
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
-                         'nonlinearity': rectify if REGRESSION else softmax}),
+    (DenseLayer, {'num_units': 1}),
 ]
 
 config = Config(layers=layers, cnf=cnf)

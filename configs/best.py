@@ -20,7 +20,7 @@ layers = [
     (layers.DropoutLayer, {'p': 0.5}),
     (layers.DenseLayer, {'num_units': 2048}),
     (layers.FeaturePoolLayer, {'pool_size': 2}),
-    (layers.DenseLayer, {'num_units': N_TARGETS}),
+    (DenseLayer, {'num_units': 1}),
 ]
 
 

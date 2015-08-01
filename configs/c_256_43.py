@@ -58,8 +58,7 @@ layers = [
     #(MaxPool2DLayer, pool_params()),
     #(Conv2DLayer, cp(512)),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, {'num_units': N_TARGETS if REGRESSION else N_CLASSES,
-                  'nonlinearity': None if REGRESSION else softmax}),
+    (DenseLayer, {'num_units': 1}),
 ]
 
 config = Config(layers=layers, cnf=cnf)
