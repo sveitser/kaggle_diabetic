@@ -11,7 +11,6 @@ from lasagne.layers.normalization import LocalResponseNormalization2DLayer
 from theano import tensor as T
 from theano.sandbox.cuda import dnn
 
-from definitions import *
 
 # import conv and pool layers
 # try CuDNN / cuda convnet / CPU in order

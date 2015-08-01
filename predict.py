@@ -4,7 +4,6 @@ import pandas as pd
 
 import util
 from nn import create_net
-from definitions import *
 
 @click.command()
 @click.option('--cnf', default='config/best.py')

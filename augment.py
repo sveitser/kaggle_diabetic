@@ -8,7 +8,6 @@ from skimage.transform._warps_cy import _warp_fast
 
 import util
 
-from definitions import *
 
 STD = np.array([70.53946096, 51.71475228, 43.03428563], dtype=np.float32)
 MEAN = np.array([108.64628601, 75.86886597, 54.34005737], dtype=np.float32)

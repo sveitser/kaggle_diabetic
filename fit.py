@@ -15,7 +15,6 @@ from quadratic_weighted_kappa import quadratic_weighted_kappa
 import util
 from data import pickle
 
-from definitions import *
 
 from yart import OrdinalRegression
 

@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 import util
 import nn
 import augment
-from definitions import *
 
 def plot_conv_bias(layer, figsize=(12, 12)):
     """Plot the weights of a specific layer. Only really makes sense

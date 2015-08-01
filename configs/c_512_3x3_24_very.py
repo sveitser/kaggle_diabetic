@@ -11,7 +11,7 @@ cnf = {
     'batch_size_train': 48,
     'batch_size_test': 16,
     #'balance_weights':  np.array([1, 2.5, 1.8, 3.5, 4], dtype=float),
-    'balance_weights': np.array(CLASS_WEIGHTS),
+    'balance_weights': np.array(BALANCE_WEIGHTS),
     'balance_ratio': 0.9,
     'final_balance_weights':  np.array([1, 2.5, 1.8, 3.5, 4], dtype=float),
     'aug_params': {
@@ -41,7 +41,7 @@ def cp(num_filters, *args, **kwargs):
     return conv_params(**args)
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size_train'], C, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (cnf['batch_size_train'], 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, conv_params(24, filter_size=(3, 3), stride=(2, 2))),
     (Conv2DLayer, conv_params(24)),
     #Conv2DLayer, conv_params(32)),

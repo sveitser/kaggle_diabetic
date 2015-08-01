@@ -11,7 +11,7 @@ cnf = {
 }
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size'], C, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (cnf['batch_size'], 3, cnf['w'], cnf['h'])}),
     (cuda_convnet.ShuffleBC01ToC01BLayer, {}),
     (Conv2DLayer, conv_params(32, stride=(2, 2))),
     (Conv2DLayer, conv_params(32)),

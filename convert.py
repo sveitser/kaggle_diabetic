@@ -16,7 +16,6 @@ import numpy as np
 from PIL import Image, ImageChops, ImageFilter
 
 import util
-from definitions import *
 
 N_PROC = 2
 

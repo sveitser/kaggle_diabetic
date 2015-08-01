@@ -1,7 +1,7 @@
 from layers import *
 
 layers = [
-    (layers.InputLayer, {'shape': (None, C, W, H)}),
+    (layers.InputLayer, {'shape': (None, 3, W, H)}),
     (Conv2DLayer, conv_params(32, stride=(1, 1))),
     (MaxPool2DLayer, pool_params()),
     (layers.DropoutLayer, {'p': 0.2}),

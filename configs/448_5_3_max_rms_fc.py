@@ -24,7 +24,7 @@ def cp(num_filters, *args, **kwargs):
 
 
 layers = [
-    (InputLayer, {'shape': (None, C, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, conv_params(16, filter_size=(5, 5), stride=(2, 2))),
     (Conv2DLayer, conv_params(16)),
     (Conv2DLayer, conv_params(16)),

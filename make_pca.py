@@ -10,7 +10,6 @@ from sklearn.decomposition import PCA
 import augment
 import util
 
-from definitions import *
 
 def process(fname):
     img = util.load_image_uint_one(fname)

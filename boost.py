@@ -25,7 +25,6 @@ from ordinal_classifier import OrdinalClassifier
 import util
 import nn
 
-from definitions import *
 
 #TRANSFORM_DIR = 'data/transform_spatial'
 #FEATURE_DIR = 'data/tta'

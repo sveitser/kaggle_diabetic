@@ -15,7 +15,7 @@ cnf = {
 }
 
 layers = [
-    (InputLayer, {'shape': (None, C, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, conv_params(24, stride=(2, 2))),
     (Conv2DLayer, conv_params(24)),
     (MaxPool2DLayer, pool_params()),

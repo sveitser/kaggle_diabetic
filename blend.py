@@ -20,7 +20,6 @@ from ordinal_classifier import OrdinalClassifier
 import data
 import nn
 
-from definitions import *
 from layers import *
 from nn import *
 from config import mkdir

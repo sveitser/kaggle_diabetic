@@ -15,7 +15,7 @@ cnf = {
 }
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size_train'], C, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (cnf['batch_size_train'], 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, conv_params(24, filter_size=(3, 3), stride=(2, 2))),
     (Conv2DLayer, conv_params(24)),
     #Conv2DLayer, conv_params(32)),

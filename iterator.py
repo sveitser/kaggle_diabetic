@@ -11,7 +11,6 @@ import SharedArray
 import data
 import util
 
-from definitions import *
 
 
 def load_shared(args):

@@ -8,7 +8,6 @@ from sklearn.metrics import confusion_matrix
 import util
 import nn
 
-from definitions import *
 
 @click.command()
 @click.option('--cnf', default='config/best.py',

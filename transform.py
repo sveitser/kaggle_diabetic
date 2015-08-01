@@ -11,7 +11,6 @@ import theano.sandbox.cuda
 
 import nn, util, iterator
 
-from definitions import *
 import tta
 
 #

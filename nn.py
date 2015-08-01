@@ -23,7 +23,6 @@ from nolearn.lasagne.handlers import SaveWeights
 import theano
 from theano import tensor as T
 
-from definitions import *
 from quadratic_weighted_kappa import quadratic_weighted_kappa
 import data
 import util
@@ -50,8 +49,8 @@ def create_net(config, **kwargs):
         'objective': get_objective(),
         'use_label_encoder': False,
         'eval_size': 0.1,
-        'regression': config.get('regression', REGRESSION),
-        'max_epochs': MAX_ITER,
+        'regression': True,
+        'max_epochs': 1000,
         'verbose': 2,
         'update_learning_rate': theano.shared(
             float32(config.get('schedule')[0])),

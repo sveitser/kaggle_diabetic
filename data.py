@@ -1,42 +1,27 @@
 from __future__ import division, print_function
 from collections import Counter
-from datetime import datetime
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
 import os
-import subprocess
 import time
+from glob import glob
 
 import numpy as np
 import pandas as pd
 from PIL import Image
 from sklearn.utils import shuffle
 from sklearn import cross_validation
-from tempfile import mkdtemp
-from joblib import Memory
 
-from quadratic_weighted_kappa import quadratic_weighted_kappa
-from definitions import *
-
+RANDOM_STATE = 9
 STD = np.array([70.53946096, 51.71475228, 43.03428563], dtype=np.float32)
 MEAN = np.array([108.64628601, 75.86886597, 54.34005737], dtype=np.float32)
+BALANCE_WEIGHTS = np.array([1.3609453700116234,  14.378223495702006, 
+                            6.637566137566138, 40.235967926689575, 
+                            49.612994350282484])
 
-# computed with make_pca.py
+# for color augmentation, computed with make_pca.py
 U = np.array([[-0.56543481, 0.71983482, 0.40240142],
               [-0.5989477, -0.02304967, -0.80036049],
               [-0.56694071, -0.6935729, 0.44423429]] ,dtype=np.float32)
 EV = np.array([1.65513492, 0.48450358, 0.1565086], dtype=np.float32)
-
-default_augmentation_params = {
-    'zoom_range': (1 / 1.1, 1.1),
-    'rotation_range': (0, 360),
-    'shear_range': (0, 0),
-    'translation_range': (-40, 40),
-    'do_flip': True,
-    'allow_stretch': True,
-}
 
 no_augmentation_params = {
     'zoom_range': (1.0, 1.0),
@@ -49,22 +34,19 @@ no_augmentation_params = {
 
 
 # timings for in 512px out 448px: order=0: 19.8ms, order=1: 26ms
-def fast_warp(img, tf, output_shape=(W, H), mode='constant', order=0):
+def fast_warp(img, tf, output_shape, mode='constant', order=0):
     """
     This wrapper function is faster than skimage.transform.warp
     """
-    m = tf.params # tf._matrix is
-    #return skimage.transform._warps_cy._warp_fast(img, m, output_shape=output_shape, mode=mode, order=order)
+    m = tf.params
     t_img = np.zeros((img.shape[0],) + output_shape, img.dtype)
     for i in range(t_img.shape[0]):
-        #t_img[i] = skimage.transform.warp(img[i], m, output_shape=output_shape, 
-        #                                  mode=mode, order=order)
         t_img[i] = _warp_fast(img[i], m, output_shape=output_shape, 
                               mode=mode, order=order)
     return t_img
 
 
-def build_centering_transform(image_shape, target_shape=(W, H)):
+def build_centering_transform(image_shape, target_shape):
     rows, cols = image_shape
     trows, tcols = target_shape
     shift_x = (cols - tcols) / 2.0
@@ -122,8 +104,7 @@ def random_perturbation_transform(zoom_range, rotation_range, shear_range, trans
 
     return build_augmentation_transform((zoom_x, zoom_y), rotation, shear, translation, flip)
 
-def perturb(img, augmentation_params=default_augmentation_params, 
-            target_shape=(W, H), rng=np.random):
+def perturb(img, augmentation_params, target_shape, rng=np.random):
     # # DEBUG: draw a border to see where the image ends up
     # img[0, :] = 0.5
     # img[-1, :] = 0.5
@@ -150,7 +131,7 @@ def perturb_fixed(img, tform_augment, target_shape=(50, 50)):
 
 
 def load_perturbed(fname):
-    img = util.load_image_uint_one(fname).astype(np.float32)
+    img = util.load_image(fname).astype(np.float32)
     return perturb(img)
 
 def augment_color(img, sigma=0.1, color_vec=None):
@@ -176,18 +157,18 @@ def load_augment(fname, w, h, aug_params=no_augmentation_params,
     img = augment_color(img, sigma=sigma, color_vec=color_vec)
     return img
 
-def compute_mean(files, batch_size=BATCH_SIZE, axis=0):
+
+def compute_mean(files, batch_size=128):
     """Load images in files in batches and compute mean."""
-    first_image = load_image_uint_one(files[0])
-    m = np.zeros(first_image.shape)
+    first_image = load_image(files[0])
+    m = np.zeros(3)
     for i in range(0, len(files), batch_size):
         images = load_image(files[i : i + batch_size])
-        m += images.sum(axis=axis)
+        m += images.sum(axis=(0, 2, 3))
     return (m / len(files)).astype(np.float32)
 
 
-def std(files, batch_size=BATCH_SIZE):
-    #data = np.array(load_image_uint(files), dtype=np.uint8)
+def std(files, batch_size=128):
     s = np.zeros(3)
     s2 = np.zeros(3)
     shape = None
@@ -203,24 +184,13 @@ def std(files, batch_size=BATCH_SIZE):
     return np.sqrt(var)
 
 
-def get_mean(files=None, cached=True):
-    """Computes mean image per channel of files or loads from cache."""
-    if cached:
-        try:
-            return np.load(open(MEAN_FILE, 'rb)'))
-        except IOError:
-            if files is None:
-                raise ValueError("couldn't load from cache and no files given")
-    print("couldn't load mean from file, computing mean images")
-    m = compute_mean(files)
-    np.save(open(MEAN_FILE, 'wb'), m)
-    print("meanfile saved to {}".format(MEAN_FILE))
-    return m
+def get_labels(names, labels=None, label_file='data/trainLabels.csv', 
+               per_patient=False):
+    
+    if labels is None:
+        labels = pd.read_csv(label_file, 
+                             index_col=0).loc[names].values.flatten()
 
-
-def get_labels(names, label_file=LABEL_FILE, per_patient=False):
-
-    labels = pd.read_csv(label_file, index_col=0).loc[names].values.flatten()
     if per_patient:
         left = np.array(['left' in n for n in names])
         return np.vstack([labels[left], labels[~left]]).T
@@ -229,14 +199,10 @@ def get_labels(names, label_file=LABEL_FILE, per_patient=False):
 
 
 def get_image_files(datadir, left_only=False):
-    fs = [os.path.join(dp, f) for dp, dn, fn in os.walk(datadir) for f in fn]
-
+    fs = glob('{}/*'.format(datadir))
     if left_only:
         fs = [f for f in fs if 'left' in f]
-
-    return np.array(sorted([x for x in fs  if 
-                            any([x.endswith(ext) 
-                                 for ext in ['tiff', 'jpeg']])]))
+    return np.array(sorted(fs))
 
 
 def get_names(files):
@@ -244,35 +210,13 @@ def get_names(files):
 
 
 def load_image(fname):
-    return np.array(Image.open(fname), dtype=np.float32).transpose(2, 1, 0)
+    if isinstance(fname, string_types):
+        return np.array(Image.open(fname), dtype=np.float32).transpose(2, 1, 0)
+    else:
+        return np.array([load_image(f) for f in fname])
 
 
-def get_filename(name, left=True, path=TRAIN_DIR):
-    return '{}/{}_{}.tiff'.format(path, name, 'left' if left else 'right')
-
-
-def get_filenames(name, path=TRAIN_DIR):
-    return [get_filename(name, left, path) for left in [True, False]]
-
-
-def merge_left_right(l, r):
-    return np.concatenate([l, r], axis=1)
-
-
-def get_submission_filename():
-    sha = get_commit_sha()
-    return "{}_{}_{}.csv".format(SUBMISSION, sha,
-                                 datetime.now().replace(microsecond=0))
-
-
-def get_commit_sha():
-    p = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
-                         stdout=subprocess.PIPE)
-    output, _ = p.communicate()
-    return output.strip().decode('utf-8')
-
-
-def balance_shuffle_indices(y, random_state=None, weight=BALANCE_WEIGHT):
+def balance_shuffle_indices(y, random_state=None, weight=BALANCE_WEIGHTS):
     y = np.asarray(y)
     counter = Counter(y)
     max_count = np.max(counter.values())
@@ -286,7 +230,7 @@ def balance_shuffle_indices(y, random_state=None, weight=BALANCE_WEIGHT):
     return shuffle(np.hstack(indices), random_state=random_state)
 
 
-def balance_per_class_indices(y, weights=CLASS_WEIGHTS):
+def balance_per_class_indices(y, weights=BALANCE_WEIGHTS):
     y = np.array(y)
     weights = np.array(weights, dtype=float)
     p = np.zeros(len(y))
@@ -296,7 +240,7 @@ def balance_per_class_indices(y, weights=CLASS_WEIGHTS):
                             p=np.array(p) / p.sum())
 
 
-def get_weights(y, weights=CLASS_WEIGHTS):
+def get_weights(y, weights=BALANCE_WEIGHTS):
     y = np.array(y)
     weights = np.array(weights, dtype=float)
     p = np.zeros(len(y))
@@ -305,14 +249,11 @@ def get_weights(y, weights=CLASS_WEIGHTS):
     return p / np.sum(p) * len(p)
 
 
-def split_indices(y, test_size=0.1, random_state=RANDOM_STATE):
-    files = get_image_files(TRAIN_DIR)
+def split_indices(files, labels, test_size=0.1, random_state=RANDOM_STATE):
+    print(files)
+    print(labels)
     names = get_names(files)
     labels = get_labels(names, per_patient=True)
-
-    #left = np.array(['left' in n for n in names])
-    #right = np.array(['right' in n for n in names])
-
     spl = cross_validation.StratifiedShuffleSplit(labels[:, 0], 
                                                   test_size=test_size, 
                                                   random_state=random_state,
@@ -323,9 +264,9 @@ def split_indices(y, test_size=0.1, random_state=RANDOM_STATE):
     return tr, te
     
 
-def split(X, y, test_size=0.1, random_state=RANDOM_STATE):
-    train, test = split_indices(y, test_size, random_state)
-    return X[train], X[test], y[train], y[test]
+def split(files, labels, test_size=0.1, random_state=RANDOM_STATE):
+    train, test = split_indices(files, labels, test_size, random_state)
+    return files[train], files[test], labels[train], labels[test]
 
 
 def per_patient_reshape(X, X_other=None):
@@ -339,7 +280,7 @@ def per_patient_reshape(X, X_other=None):
                       right_eye]).astype(np.float32)
 
 
-def load_transform(directory=FEATURE_DIR, test=False, transform_file=None):
+def load_transform(directory, test=False, transform_file=None):
 
     if transform_file is None:
         tfs = sorted([os.path.join(directory, f) 

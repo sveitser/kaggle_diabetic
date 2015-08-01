@@ -1,4 +1,6 @@
+from datetime import datetime
 import importlib
+import subprocess
 import os
 
 import numpy as np
@@ -25,9 +27,24 @@ def kappa_from_proba(w, p, y_true):
 def load_module(mod):
     return importlib.import_module(mod.replace('/', '.').split('.py')[0])
 
+
 def mkdir(path):
     try:
         os.makedirs(path)
     except OSError:
         pass
+
+
+def get_commit_sha():
+    p = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
+                         stdout=subprocess.PIPE)
+    output, _ = p.communicate()
+    return output.strip().decode('utf-8')
+
+def get_submission_filename():
+    sha = get_commit_sha()
+    return "{}_{}_{}.csv".format(SUBMISSION, sha,
+                                 datetime.now().replace(microsecond=0))
+
+
 

@@ -22,7 +22,6 @@ from ordinal_classifier import OrdinalClassifier
 import util
 import nn
 
-from definitions import *
 from boost import *
 
 def evalkappa(preds, dtrain):

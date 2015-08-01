@@ -18,7 +18,7 @@ def cp(num_filters, *args, **kwargs):
     return conv_params(num_filters, filter_size=(5, 5), *args, **kwargs)
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size_train'], C, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (cnf['batch_size_train'], 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, conv_params(24, stride=(2, 2))),
     (Conv2DLayer, cp(24)),
     #Conv2DLayer, cp(32)),
