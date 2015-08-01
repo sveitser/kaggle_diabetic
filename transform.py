@@ -13,18 +13,13 @@ import nn, util, iterator
 
 import tta
 
-#
-#       TODO pass no augmentation params / no color augmentation for
-#       deterministic evaluation
-#
-
 @click.command()
-@click.option('--cnf', default='config/best.py',
+@click.option('--cnf', default='config/c_128_4x4_32.py',
               help="Path or name of configuration module.")
 @click.option('--n_iter', default=1,
               help="Iterations for test time averaging.")
 @click.option('--skip', default=0,
-              help="Number of pseudo TTA iterations to skip.")
+              help="Number of test time averaging iterations to skip.")
 @click.option('--test', is_flag=True, default=False)
 @click.option('--train', is_flag=True, default=False)
 @click.option('--weights_from', default=None,
@@ -39,19 +34,7 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
     if test:
         runs['test'] = config.get('test_dir', TEST_DIR)
 
-    config.cnf['batch_size_test'] = 128
-
-    # reduced augmentation for TTA
-    #config.cnf['sigma'] = 0.02
-    #config.cnf['color'] = False
-    #config.cnf['aug_params']['zoom_range'] = (1.0 / 1.2, 1.2)
-    #config.cnf['aug_params']['translation_range'] = (20, 20)
-    #start = config.cnf['slope'].get_value()
-    #config.cnf['slope'].set_value(nn.float32(
-    #    start * config.cnf['slope_decay'] ** 209))
-    #print(config.cnf['slope'].get_value())
-
-    net = nn.create_net(config, tta=True if n_iter > 1 else False)
+    net = nn.create_net(config)
 
     if weights_from is None:
         net.load_params_from(config.weights_file)
@@ -61,8 +44,13 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
         net.load_params_from(weights_from)
         print("loaded weights from {}".format(weights_from))
 
-    tfs, color_vecs = tta.build_quasirandom_transforms(
-            n_iter, config.cnf['sigma'], skip=skip, **config.cnf['aug_params'])
+    if n_iter > 1:
+        tfs, color_vecs = tta.build_quasirandom_transforms(
+                n_iter, config.cnf['sigma'], skip=skip, 
+                **config.cnf['aug_params'])
+    else:
+        tfs = [data.no_augmentation_params]
+        color_vecs = [np.zeros(3, dtype=np.float32)]
 
     for run, directory in sorted(runs.items(), reverse=True):
 
@@ -93,7 +81,7 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
                 config.save_std(std, i, skip=skip,
                                test=True if run == 'test' else False)
                 print('saved {} iterations'.format(i))
-                #Xs, Xs2 = None, None
+
 
 if __name__ == '__main__':
     transform()

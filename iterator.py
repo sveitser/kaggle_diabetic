@@ -94,8 +94,7 @@ class SharedIterator(QueueIterator):
 
             for i, fname in enumerate(fnames):
                 kwargs = {k: self.config.get(k) for k in 
-                          ['w', 'h', 'rotate', 'aug_params', 'color', 'sigma', 
-                           'mean', 'std']}
+                          ['w', 'h', 'aug_params']}
                 kwargs['transform'] = getattr(self, 'tf', None)
                 kwargs['color_vec'] = getattr(self, 'color_vec', None)
                 args.append((i, shared_array_name, fname, kwargs))
@@ -125,5 +124,5 @@ class ResampleIterator(SharedIterator):
             X = X[indices]
             y = y[indices]
         return super(ResampleIterator, self).__call__(X, y, transform=transform,
-                                                    color_vec=color_vec)
+                                                      color_vec=color_vec)
 

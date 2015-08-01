@@ -250,8 +250,6 @@ def get_weights(y, weights=BALANCE_WEIGHTS):
 
 
 def split_indices(files, labels, test_size=0.1, random_state=RANDOM_STATE):
-    print(files)
-    print(labels)
     names = get_names(files)
     labels = get_labels(names, per_patient=True)
     spl = cross_validation.StratifiedShuffleSplit(labels[:, 0], 
@@ -280,7 +278,10 @@ def per_patient_reshape(X, X_other=None):
                       right_eye]).astype(np.float32)
 
 
-def load_transform(directory, test=False, transform_file=None):
+def load_transform(directory=None, transform_file=None, test=False):
+
+    if directory is None and transform_file is None:
+        raise ValueError("specify directory or transform file")
 
     if transform_file is None:
         tfs = sorted([os.path.join(directory, f) 
@@ -293,8 +294,7 @@ def load_transform(directory, test=False, transform_file=None):
     else:
         tfs = [tf for tf in tfs if 'test' not in tf]
 
-    print('loading transform files')
-    pprint.pprint(tfs)
     data = [np.load(open(tf, 'rb')) for tf in tfs]
     data = [t.reshape([t.shape[0], -1]) for t in data]
+
     return np.hstack(data)

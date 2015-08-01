@@ -50,6 +50,18 @@ SCHEDULE = {
 
 RESAMPLE_WEIGHTS = [1.360, 14.37, 6.637, 40.23, 49.61]
 
+class BlendNet(Net):
+    def set_split(self, files, labels):
+        """Override train/test split method."""
+        def split(X, y, eval_size):
+            if eval_size:
+                tr, te = data.split_indices(files, labels, eval_size)
+                return X[tr], X[te], y[tr], y[te]
+            else:
+                return X, y, X[len(X):], y[len(y):]
+        setattr(self, 'train_test_split', split)
+
+
 class ResampleIterator(BatchIterator):
 
     def __init__(self, batch_size, resample_prob=0.2, shuffle_prob=0.5):
@@ -117,7 +129,7 @@ def get_nonlinearity():
 def rrange(a, b):
     return (np.random.rand() + a) * (b - a)
 
-def get_estimator(n_features, eval_size=0.1):
+def get_estimator(n_features, files, labels, eval_size=0.1):
     layers = [
         (InputLayer, {'shape': (None, n_features)}),
         (DenseLayer, {'num_units': N_HIDDEN_1, 'nonlinearity': rectify,
@@ -145,11 +157,12 @@ def get_estimator(n_features, eval_size=0.1):
         max_epochs=N_ITER,
         verbose=1,
     )
-    return Net(layers, **args)
-
+    net = BlendNet(layers, **args)
+    net.set_split(files, labels)
+    return net
 
 @click.command()
-@click.option('--cnf', default='configs/c_128_5x5_32.py',
+@click.option('--cnf', default='configs/c_128_4x4_32.py',
               help="Path or name of configuration module.")
 @click.option('--predict', is_flag=True, default=False)
 @click.option('--per_patient', is_flag=True, default=False)
@@ -159,19 +172,18 @@ def get_estimator(n_features, eval_size=0.1):
 def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
 
     config = util.load_module(cnf).config
-    files = data.get_image_files(config.get('train_dir', TRAIN_DIR))
-    names = data.get_names(files)
+    image_files = data.get_image_files(config.get('train_dir'))
+    names = data.get_names(image_files)
     labels = data.get_labels(names).astype(np.float32)[:, np.newaxis]
 
-    #dirs = glob('data/features/*/') if directory is None else [directory]
-    dirs = glob('{}/*/'.format(directory))
-    files = glob('{}/*.*'.format(directory))
+    tf_dirs = glob('{}/*/'.format(directory))
+    tf_files = glob('{}/*.*'.format(directory))
 
     if transform_file is None:
-        X_trains = [data.load_transform(directory=directory)
-                    for directory in dirs] \
+        X_trains = [data.load_transform(directory)
+                    for directory in tf_dirs] \
                    + [data.load_transform(transform_file=transform_file)
-                      for transform_file in files]
+                      for transform_file in tf_files]
     else:
         X_trains = [data.load_transform(transform_file=transform_file)]
 
@@ -183,7 +195,7 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
 
         if transform_file is None:
             X_tests = [data.load_transform(directory=directory, test=True)
-                       for directory in dirs]
+                       for directory in tf_dirs]
         else:
             transform_file = transform_file.replace('train', 'test')
             X_tests = [data.load_transform(test=True, 
@@ -192,14 +204,9 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
         X_tests = [scaler.transform(X_test) 
                    for scaler, X_test in zip(scalers, X_tests)]
 
-        #if per_patient:
-        #    X_tests = [per_patient_reshape(X_test).astype(np.float32)
-        #               for X_test in X_tests]
-
     # data.split_indices split per patient by default now
-    tr, te = data.split_indices(labels)
+    tr, te = data.split_indices(image_files, labels)
 
-    # 
     if not predict:
         print("feature matrix {}".format(X_train.shape))
 
@@ -212,7 +219,7 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
                     if per_patient else X_train
                 print('iter {}'.format(i))
                 print('fitting split training set')
-                est = get_estimator(X.shape[1])
+                est = get_estimator(X.shape[1], image_files, labels)
                 est.fit(X, labels)
 
                 y_pred = est.predict(X[te]).ravel()
@@ -258,8 +265,8 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
                           np.min(labels), np.max(labels)).astype(int)
 
         submission_filename = data.get_submission_filename()
-        files = data.get_image_files(config.get('test_dir', TEST_DIR))
-        names = data.get_names(files)
+        image_files = data.get_image_files(config.get('test_dir', TEST_DIR))
+        names = data.get_names(image_files)
         image_column = pd.Series(names, name='image')
         level_column = pd.Series(y_pred, name='level')
         predictions = pd.concat([image_column, level_column], axis=1)

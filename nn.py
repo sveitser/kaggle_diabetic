@@ -41,8 +41,10 @@ def create_net(config, **kwargs):
         'batch_iterator_test': iterator.SharedIterator(
             config, batch_size=config.get('batch_size_test')),
         'on_epoch_finished': [
-            Schedule('update_learning_rate', config.get('schedule')),
-            SaveBestWeights(loss='kappa', greater_is_better=True,),
+            Schedule('update_learning_rate', config.get('schedule'),
+                     weights_file=config.final_weights_file),
+            SaveBestWeights(weights_file=config.weights_file, 
+                            loss='kappa', greater_is_better=True,),
             SaveWeights(config.weights_epoch, every_n_epochs=5),
             SaveWeights(config.weights_best, every_n_epochs=1, only_best=True),
         ],
@@ -61,7 +63,6 @@ def create_net(config, **kwargs):
     }
     args.update(kwargs)
     net = Net(**args)
-    net._config = config
     return net
 
 
@@ -88,23 +89,25 @@ def get_objective(l1=0.0, l2=0.0005):
 
 
 class Schedule(object):
-    def __init__(self, name, schedule):
+    def __init__(self, name, schedule, weights_file=None):
         self.name = name
         self.schedule = schedule
+        self.weights_file = weights_file
 
     def __call__(self, nn, train_history):
         epoch = train_history[-1]['epoch']
         if epoch in self.schedule:
             new_value = self.schedule[epoch]
             if new_value == 'stop':
-                if hasattr(nn, '_config'):
-                    nn.save_params_to(nn._config.final_weights_file)
+                if self.weights_file is not None:
+                    nn.save_params_to(self.weights_file)
                 raise StopIteration
             getattr(nn, self.name).set_value(float32(new_value))
 
 
 class SaveBestWeights(object):
-    def __init__(self, loss='kappa', greater_is_better=True):
+    def __init__(self, weights_file, loss='kappa', greater_is_better=True):
+        self.weights_file = weights_file
         self.best_valid = np.inf
         self.best_valid_epoch = 0
         self.best_weights = None
@@ -119,7 +122,7 @@ class SaveBestWeights(object):
             self.best_valid = current_valid
             self.best_valid_epoch = current_epoch
             self.best_weights = [w.get_value() for w in nn.get_all_params()]
-            nn.save_params_to(nn._config.weights_file)
+            nn.save_params_to(self.weights_file)
 
 
 class Net(NeuralNet):
