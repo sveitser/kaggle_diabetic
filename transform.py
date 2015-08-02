@@ -1,17 +1,13 @@
 from __future__ import division
-import importlib
 import time
 
 import click
 import numpy as np
 
-import theano.sandbox.cuda
-#theano.sandbox.cuda.use("gpu1") # doesn't seem to work when set here
-#import theano
-
-import nn, util, iterator
-
+import nn
+import data
 import tta
+import util
 
 @click.command()
 @click.option('--cnf', default='config/c_128_4x4_32.py',
@@ -30,9 +26,9 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
 
     runs = {}
     if train:
-        runs['train'] = config.get('train_dir', TRAIN_DIR)
+        runs['train'] = config.get('train_dir')
     if test:
-        runs['test'] = config.get('test_dir', TEST_DIR)
+        runs['test'] = config.get('test_dir')
 
     net = nn.create_net(config)
 
@@ -46,11 +42,12 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
 
     if n_iter > 1:
         tfs, color_vecs = tta.build_quasirandom_transforms(
-                n_iter, config.cnf['sigma'], skip=skip, 
+                n_iter, skip=skip, color_sigma=config.cnf['sigma'],
                 **config.cnf['aug_params'])
     else:
-        tfs = [data.no_augmentation_params]
-        color_vecs = [np.zeros(3, dtype=np.float32)]
+        tfs, color_vecs = tta.build_quasirandom_transforms(
+               n_iter, skip=skip, color_sigma=0.0,
+                **data.no_augmentation_params)
 
     for run, directory in sorted(runs.items(), reverse=True):
 

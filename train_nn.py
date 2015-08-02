@@ -44,7 +44,7 @@ def main(cnf, weights_from):
     files = data.get_image_files(config.get('train_dir'))
     names = data.get_names(files)
     labels = data.get_labels(names).astype(np.float32)
-
+    print(labels.shape)
     f_train, f_test, y_train, y_test = data.split(files, labels)
 
     net = create_net(config)
@@ -56,7 +56,7 @@ def main(cnf, weights_from):
         print("couldn't load weights starting from scratch")
 
     print("fitting ...")
-    net.fit(files, y)
+    net.fit(files, labels)
 
     print("making predictions on validation set")
     y_pred = np.round(net.predict(f_test)).astype(int)

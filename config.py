@@ -6,6 +6,7 @@ import numpy as np
 
 from util import mkdir
 
+TRANSFORM_DIR = 'data/transform'
 
 class Config(object):
     def __init__(self, layers, cnf=None):

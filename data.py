@@ -311,17 +311,16 @@ def load_transform(directory=None, transform_file=None, test=False):
         raise ValueError("specify directory or transform file")
 
     if transform_file is None:
-        tfs = sorted([os.path.join(directory, f) 
-                      for f in os.listdir(directory) if f.endswith('npy')])
+        tfs = sorted(glob('{}/*'.format(directory))) 
     else:
         tfs = [transform_file]
-
+    
     if test:
-        tfs = [tf for tf in tfs if 'test' in tf]
+        tfs = [tf for tf in tfs if 'test' in os.path.basename(tf)]
     else:
-        tfs = [tf for tf in tfs if 'test' not in tf]
+        tfs = [tf for tf in tfs if 'test' not in os.path.basename(tf)]
 
-    data = [np.load(open(tf, 'rb')) for tf in tfs]
+    data = [np.load(tf) for tf in tfs]
     data = [t.reshape([t.shape[0], -1]) for t in data]
 
     return np.hstack(data)

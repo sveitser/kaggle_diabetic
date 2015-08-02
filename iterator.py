@@ -105,6 +105,9 @@ class SharedIterator(QueueIterator):
         finally:
             SharedArray.delete(shared_array_name)
 
+        if labels is not None:
+            labels = labels[:, np.newaxis]
+
         return Xb, labels
 
 

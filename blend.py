@@ -180,7 +180,7 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
     tf_files = glob('{}/*.*'.format(directory))
 
     if transform_file is None:
-        X_trains = [data.load_transform(directory)
+        X_trains = [data.load_transform(directory=directory)
                     for directory in tf_dirs] \
                    + [data.load_transform(transform_file=transform_file)
                       for transform_file in tf_files]

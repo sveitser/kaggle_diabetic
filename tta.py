@@ -7,7 +7,7 @@ import itertools
 import numpy as np
 import ghalton
 
-import augment as data
+import data
 import icdf
 
 
