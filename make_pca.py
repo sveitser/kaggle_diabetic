@@ -14,7 +14,7 @@ def process(fname):
                       for channel in img])
 
 @click.command()
-@click.option('--directory', default='data/train_medium')
+@click.option('--directory', default='data/train_tiny')
 def main(directory):
 
     filenames = data.get_image_files(directory)
@@ -23,15 +23,10 @@ def main(directory):
     bs = 1000
     batches = [filenames[i * bs : (i + 1) * bs] 
                for i in range(int(len(filenames) / bs) + 1)]
-    mean = np.array(MEAN, dtype=np.float32)
-    std = np.array(STD, dtype=np.float32)
 
     Us, evs = [], []
     for batch in batches:
-        #images = util.load_image(batch)
-        images = np.array([augment.load(f, w=512, h=512, deterministic=True,
-                                        mean=mean, std=std)
-                           for f in batch])
+        images = np.array([data.load_augment(f, 128, 128) for f in batch])
         X = images.transpose(0, 2, 3, 1).reshape(-1, 3)
         cov = np.dot(X.T, X) / X.shape[0]
         U, S, V = np.linalg.svd(cov)

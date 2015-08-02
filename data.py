@@ -1,3 +1,8 @@
+"""IO and data augmentation.
+
+Some of the data augmentation bits are taken from 
+https://github.com/benanne/kaggle-ndsb/blob/master/data.py
+"""
 from __future__ import division, print_function
 from collections import Counter
 import os
@@ -7,12 +12,21 @@ from glob import glob
 import numpy as np
 import pandas as pd
 from PIL import Image
+import skimage
+import skimage.transform
+from skimage.transform._warps_cy import _warp_fast
 from sklearn.utils import shuffle
 from sklearn import cross_validation
 
 RANDOM_STATE = 9
+
+# channel standard deviations
 STD = np.array([70.53946096, 51.71475228, 43.03428563], dtype=np.float32)
+
+# channel means
 MEAN = np.array([108.64628601, 75.86886597, 54.34005737], dtype=np.float32)
+
+# set of resampling weights that yields balanced classes
 BALANCE_WEIGHTS = np.array([1.3609453700116234,  14.378223495702006, 
                             6.637566137566138, 40.235967926689575, 
                             49.612994350282484])
@@ -64,6 +78,7 @@ def build_center_uncenter_transforms(image_shape):
     tform_center = skimage.transform.SimilarityTransform(translation=center_shift)
     return tform_center, tform_uncenter
 
+
 def build_augmentation_transform(zoom=(1.0, 1.0), rotation=0, shear=0, translation=(0, 0), flip=False): 
     if flip:
         shear += 180
@@ -73,6 +88,7 @@ def build_augmentation_transform(zoom=(1.0, 1.0), rotation=0, shear=0, translati
 
     tform_augment = skimage.transform.AffineTransform(scale=(1/zoom[0], 1/zoom[1]), rotation=np.deg2rad(rotation), shear=np.deg2rad(shear), translation=translation)
     return tform_augment
+
 
 def random_perturbation_transform(zoom_range, rotation_range, shear_range, translation_range, do_flip=True, allow_stretch=False, rng=np.random):
     shift_x = rng.uniform(*translation_range)
@@ -134,10 +150,14 @@ def load_perturbed(fname):
     img = util.load_image(fname).astype(np.float32)
     return perturb(img)
 
+
 def augment_color(img, sigma=0.1, color_vec=None):
 
     if color_vec is None:
-        color_vec = np.random.normal(0.0, sigma, 3)
+        if not sigma > 0.0:
+            color_vec = np.zeros(3, dtype=np.float32)
+        else:
+            color_vec = np.random.normal(0.0, sigma, 3)
     
     alpha = color_vec.astype(np.float32) * EV
     noise = np.dot(U, alpha.T)
@@ -145,15 +165,22 @@ def augment_color(img, sigma=0.1, color_vec=None):
 
 
 def load_augment(fname, w, h, aug_params=no_augmentation_params,
-                 transform=None, color_vec=None, sigma=None):
+                 transform=None, sigma=0.0, color_vec=None):
+    """Load augmented image with output shape (w, h).
+
+    Default arguments return non augmented image of shape (w, h).
+    To apply a fixed transform (color augmentation) specify transform
+    (color_vec). 
+    To generate a random augmentation specify aug_params and sigma.
+    """
     img = load_image(fname)
     if transform is None:
         img = perturb(img, augmentation_params=aug_params, target_shape=(w, h))
     else:
         img = perturb_fixed(img, tform_augment=transform, target_shape=(w, h))
 
-    np.subtract(img, kwargs['mean'][:, np.newaxis, np.newaxis], out=img)
-    np.divide(img, kwargs['std'][:, np.newaxis, np.newaxis], out=img)
+    np.subtract(img, MEAN[:, np.newaxis, np.newaxis], out=img)
+    np.divide(img, STD[:, np.newaxis, np.newaxis], out=img)
     img = augment_color(img, sigma=sigma, color_vec=color_vec)
     return img
 
@@ -210,7 +237,7 @@ def get_names(files):
 
 
 def load_image(fname):
-    if isinstance(fname, string_types):
+    if isinstance(fname, basestring):
         return np.array(Image.open(fname), dtype=np.float32).transpose(2, 1, 0)
     else:
         return np.array([load_image(f) for f in fname])

@@ -187,9 +187,12 @@ def load_perturbed(fname):
     return perturb(img)
 
 def augment_color(img, sigma=0.1, color_vec=None):
-
+    print(sigma)
     if color_vec is None:
-        color_vec = np.random.normal(0.0, sigma, 3)
+        if not sigma > 0.0:
+            color_vec = np.zeros(3, dtype=np.float32)
+        else:
+            color_vec = np.random.normal(0.0, sigma, 3)
     
     alpha = color_vec.astype(np.float32) * EV
     noise = np.dot(U, alpha.T)
