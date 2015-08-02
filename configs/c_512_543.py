@@ -41,7 +41,7 @@ def cp(num_filters, *args, **kwargs):
 
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size_train'], 3, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, cp(16, filter_size=(5, 5), stride=(2, 2))),
     (Conv2DLayer, cp(32)),
     (MaxPool2DLayer, pool_params()),

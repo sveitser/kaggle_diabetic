@@ -22,7 +22,7 @@ cnf = {
 }
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size'], 3, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, conv_params(24, stride=(2, 2))),
     (Conv2DLayer, conv_params(24)),
     #Conv2DLayer, conv_params(32)),

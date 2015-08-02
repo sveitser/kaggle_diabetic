@@ -2,7 +2,7 @@ from layers import *
 
 
 layers = [
-    (layers.InputLayer, {'shape': (None, 3, W, H)}),
+    (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, conv_params(48, stride=(2, 2))),
     (MaxPool2DLayer, pool_params()),
     (layers.DropoutLayer, {'p': 0.2}),

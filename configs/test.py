@@ -15,7 +15,7 @@ cnf = {
 }
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size'], 3, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
     (DenseLayer, {'num_units': 1}),
 ]
 

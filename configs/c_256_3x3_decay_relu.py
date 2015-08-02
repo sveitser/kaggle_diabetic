@@ -60,7 +60,7 @@ def dp(num_units, *args, **kwargs):
 n = 16
 
 layers = [
-    (InputLayer, {'shape': (cnf['batch_size_train'], 3, cnf['w'], cnf['h'])}),
+    (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
     (Conv2DLayer, cp(n)),
     (Conv2DLayer, cp(n)),
     #Conv2DLayer, cp(32)),
