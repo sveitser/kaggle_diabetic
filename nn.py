@@ -39,7 +39,8 @@ def create_net(config, **kwargs):
         'batch_iterator_train': iterator.ResampleIterator(
             config, batch_size=config.get('batch_size_train')),
         'batch_iterator_test': iterator.SharedIterator(
-            config, batch_size=config.get('batch_size_test')),
+            config, deterministic=True, 
+            batch_size=config.get('batch_size_test')),
         'on_epoch_finished': [
             Schedule('update_learning_rate', config.get('schedule'),
                      weights_file=config.final_weights_file),

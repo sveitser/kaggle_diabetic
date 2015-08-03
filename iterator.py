@@ -75,8 +75,9 @@ class QueueIterator(BatchIterator):
 
 
 class SharedIterator(QueueIterator):
-    def __init__(self, config, *args, **kwargs):
+    def __init__(self, config, deterministic=False, *args, **kwargs):
         self.config = config
+        self.deterministic = deterministic
         self.pool = multiprocessing.Pool()
         super(SharedIterator, self).__init__(*args, **kwargs)
 
@@ -93,8 +94,10 @@ class SharedIterator(QueueIterator):
             args = []
 
             for i, fname in enumerate(fnames):
-                kwargs = {k: self.config.get(k) for k in 
-                          ['w', 'h', 'aug_params', 'sigma']}
+                    kwargs = {k: self.config.get(k) for k in ['w', 'h']}
+                if not self.deterministic:
+                    kwargs.update({k: self.config.get(k) 
+                                   for k in ['aug_params', 'sigma']})
                 kwargs['transform'] = getattr(self, 'tf', None)
                 kwargs['color_vec'] = getattr(self, 'color_vec', None)
                 args.append((i, shared_array_name, fname, kwargs))
