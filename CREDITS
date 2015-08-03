@@ -1,0 +1,16 @@
+This project uses code from the following open source projects. You may find the
+original code bases along with their license information via the links below.
+We are grateful and thank the authors for their contribution to open source.
+
+Project: Kaggle NDSB https://github.com/benanne/kaggle-ndsb
+Copyright (c) 2015 Sander Dieleman
+License (MIT) https://github.com/benanne/kaggle-ndsb/blob/master/LICENSE
+
+Project: Nolearn https://github.com/dnouri/nolearn
+Copyright (c) 2012-2015 Daniel Nouri
+License (MIT) https://github.com/dnouri/nolearn/blob/master/LICENSE.txt
+
+Project: Metrics: https://github.com/benhamner/Metrics
+Copyright (c) 2012, Ben Hamner
+License (BSD 2) https://github.com/benhamner/Metrics/blob/master/LICENSE
+
