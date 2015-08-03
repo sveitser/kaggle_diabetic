@@ -1,36 +1,20 @@
 from __future__ import print_function
-from collections import Counter
-import cPickle as pickle
-from datetime import datetime
-import pprint
 from time import time
-import sys
-
-import pandas as pd
-import numpy as np
 
 import lasagne
 import lasagne.layers
-from lasagne import init
-
-from lasagne.updates import *
-from lasagne import updates
-from lasagne.objectives import (MaskedObjective, Objective,
-                                categorical_crossentropy, mse)
+from lasagne.updates import nesterov_momentum
+from lasagne.objectives import Objective
 from lasagne.layers import get_all_layers, get_output, InputLayer
-from nolearn.lasagne import NeuralNet, BatchIterator
+from nolearn.lasagne import NeuralNet
 from nolearn.lasagne.handlers import SaveWeights
+import numpy as np
 import theano
 from theano import tensor as T
 
-from quadratic_weighted_kappa import quadratic_weighted_kappa
 import data
 import util
 import iterator
-
-
-def float32(k):
-    return np.cast['float32'](k)
 
 
 def create_net(config, **kwargs):
@@ -56,7 +40,7 @@ def create_net(config, **kwargs):
         'max_epochs': 1000,
         'verbose': 2,
         'update_learning_rate': theano.shared(
-            float32(config.get('schedule')[0])),
+            util.float32(config.get('schedule')[0])),
         'update': nesterov_momentum,
         'update_momentum': 0.9,
         'custom_score': ('kappa', util.kappa),
@@ -103,7 +87,7 @@ class Schedule(object):
                 if self.weights_file is not None:
                     nn.save_params_to(self.weights_file)
                 raise StopIteration
-            getattr(nn, self.name).set_value(float32(new_value))
+            getattr(nn, self.name).set_value(util.float32(new_value))
 
 
 class SaveBestWeights(object):
@@ -248,8 +232,6 @@ class Net(NeuralNet):
             func(self, self.train_history_)
 
         num_epochs_past = len(self.train_history_)
-
-        class_losses = None
 
         while epoch < self.max_epochs:
             epoch += 1

@@ -6,7 +6,6 @@ https://github.com/benanne/kaggle-ndsb/blob/master/data.py
 from __future__ import division, print_function
 from collections import Counter
 import os
-import time
 from glob import glob
 
 import numpy as np
@@ -187,7 +186,6 @@ def load_augment(fname, w, h, aug_params=no_augmentation_params,
 
 def compute_mean(files, batch_size=128):
     """Load images in files in batches and compute mean."""
-    first_image = load_image(files[0])
     m = np.zeros(3)
     for i in range(0, len(files), batch_size):
         images = load_image(files[i : i + batch_size])

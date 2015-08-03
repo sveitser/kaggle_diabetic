@@ -1,30 +1,10 @@
-import sys
-
+"""Conv Nets training script."""
 import click
 import numpy as np
-
-from sklearn.utils import shuffle
-from sklearn import cross_validation
-
-from quadratic_weighted_kappa import quadratic_weighted_kappa
 
 import data
 import util
 from nn import create_net
-
-
-class Log(object):
-    def __init__(self, fname):
-        self.terminal = sys.stdout
-        self.log = open(fname, 'a')
-
-    def write(self, message):
-        self.terminal.write(message)
-        self.log.write(message)
-
-    def flush(self, *args, **kwargs):
-        self.terminal.flush()
-        self.log.flush()
 
 
 @click.command()
@@ -44,8 +24,6 @@ def main(cnf, weights_from):
     files = data.get_image_files(config.get('train_dir'))
     names = data.get_names(files)
     labels = data.get_labels(names).astype(np.float32)
-    print(labels.shape)
-    f_train, f_test, y_train, y_test = data.split(files, labels)
 
     net = create_net(config)
 
@@ -57,13 +35,6 @@ def main(cnf, weights_from):
 
     print("fitting ...")
     net.fit(files, labels)
-
-    print("making predictions on validation set")
-    y_pred = np.round(net.predict(f_test)).astype(int)
-
-    print("ConvNet quadratic weighted kappa {}".format(
-        quadratic_weighted_kappa(y_test, y_pred)))
-
 
 if __name__ == '__main__':
     main()

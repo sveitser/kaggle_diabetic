@@ -5,7 +5,7 @@ from multiprocessing.pool import Pool
 
 import click
 import numpy as np
-from PIL import Image, ImageChops, ImageFilter
+from PIL import Image, ImageFilter
 
 import data
 
@@ -129,7 +129,7 @@ def main(directory, convert_directory, test, crop_size, extension):
 
     for i in range(batches):
         print("batch {:>2} / {}".format(i + 1, batches))
-        m = pool.map(process, args[i * batchsize: (i + 1) * batchsize])
+        pool.map(process, args[i * batchsize: (i + 1) * batchsize])
 
     pool.close()
 

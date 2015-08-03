@@ -1,6 +1,4 @@
 from __future__ import division, print_function
-import os
-from multiprocessing.pool import Pool
 
 import click
 import numpy as np
@@ -18,7 +16,6 @@ def process(fname):
 def main(directory):
 
     filenames = data.get_image_files(directory)
-    n = len(filenames)
 
     bs = 1000
     batches = [filenames[i * bs : (i + 1) * bs] 

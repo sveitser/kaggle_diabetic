@@ -7,6 +7,11 @@ import numpy as np
 
 from quadratic_weighted_kappa import quadratic_weighted_kappa
 
+
+def float32(k):
+    return np.cast['float32'](k)
+
+
 def kappa(y_true, y_pred):
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
@@ -41,10 +46,9 @@ def get_commit_sha():
     output, _ = p.communicate()
     return output.strip().decode('utf-8')
 
+
 def get_submission_filename():
     sha = get_commit_sha()
-    return "{}_{}_{}.csv".format(SUBMISSION, sha,
-                                 datetime.now().replace(microsecond=0))
-
-
+    return "data/sub_{}_{}.csv".format(sha,
+                                       datetime.now().replace(microsecond=0))
 
