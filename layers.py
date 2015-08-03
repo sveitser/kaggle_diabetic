@@ -1,5 +1,6 @@
 import lasagne
-from lasagne.layers import DenseLayer, InputLayer, FeaturePoolLayer
+from lasagne.layers import (DenseLayer, InputLayer, FeaturePoolLayer,
+                            DropoutLayer)
 from lasagne import init, layers
 from lasagne.nonlinearities import leaky_rectify
 
