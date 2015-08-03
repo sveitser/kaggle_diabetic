@@ -7,7 +7,7 @@ import click
 import numpy as np
 from PIL import Image, ImageChops, ImageFilter
 
-import util
+import data
 
 N_PROC = 2
 
