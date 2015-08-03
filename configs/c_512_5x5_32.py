@@ -1,7 +1,8 @@
-from layers import *
+import numpy as np
 
 from config import Config
 from data import BALANCE_WEIGHTS
+from layers import *
 
 cnf = {
     'name': __name__.split('.')[-1],
