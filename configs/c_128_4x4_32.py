@@ -37,18 +37,9 @@ def cp(num_filters, *args, **kwargs):
     args = {
         'num_filters': num_filters,
         'filter_size': (4, 4),
-        'nonlinearity': nonlinearity,
     }
     args.update(kwargs)
     return conv_params(**args)
-
-def dp(num_units, *args, **kwargs):
-    args = {
-        'num_units': num_units,
-        'nonlinearity': nonlinearity,
-    }
-    args.update(kwargs)
-    return dense_params(**args)
 
 n = 32
 
@@ -64,18 +55,12 @@ layers = [
     (Conv2DLayer, cp(4 * n, border_mode=None, pad=2)),
     (Conv2DLayer, cp(4 * n)),
     (Conv2DLayer, cp(4 * n, border_mode=None, pad=2)),
-    #(MaxPool2DLayer, pool_params()),
-    #(Conv2DLayer, cp(8 * n, border_mode=None, pad=2)),
-    #(Conv2DLayer, cp(8 * n)),
-    #(Conv2DLayer, cp(8 * n, border_mode=None, pad=2)),
-    #(MaxPool2DLayer, pool_params()),
-    #(Conv2DLayer, cp(16 * n)),
     (RMSPoolLayer, pool_params()),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, dp(1024)),
+    (DenseLayer, dense_params(1024)),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, dp(1024)),
+    (DenseLayer, dense_params(1024)),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DenseLayer, {'num_units': 1}),
 ]

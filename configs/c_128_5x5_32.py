@@ -11,7 +11,6 @@ cnf = {
     'test_dir': 'data/test_tiny',
     'batch_size_train': 128,
     'batch_size_test': 128,
-    #'balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
     'balance_weights': np.array(BALANCE_WEIGHTS),
     'balance_ratio': 0.975,
     'final_balance_weights':  np.array([1, 2, 2, 2, 2], dtype=float),
@@ -32,52 +31,26 @@ cnf = {
     },
 }
 
-nonlinearity = leaky_rectify
-
-def cp(num_filters, *args, **kwargs):
-    args = {
-        'num_filters': num_filters,
-        'filter_size': (3, 3),
-        'nonlinearity': nonlinearity,
-    }
-    args.update(kwargs)
-    return conv_params(**args)
-
-def dp(num_units, *args, **kwargs):
-    args = {
-        'num_units': num_units,
-        'nonlinearity': nonlinearity,
-    }
-    args.update(kwargs)
-    return dense_params(**args)
-
 n = 32
 
 layers = [
     (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
-    (Conv2DLayer, cp(n, filter_size=(5, 5), stride=(2, 2))),
-    (Conv2DLayer, cp(n)),
+    (Conv2DLayer, conv_params(n, filter_size=(5, 5), stride=(2, 2))),
+    (Conv2DLayer, conv_params(n)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(2 * n, filter_size=(5, 5), stride=(2, 2))),
-    (Conv2DLayer, cp(2 * n)),
-    (Conv2DLayer, cp(2 * n)),
+    (Conv2DLayer, conv_params(2 * n, filter_size=(5, 5), stride=(2, 2))),
+    (Conv2DLayer, conv_params(2 * n)),
+    (Conv2DLayer, conv_params(2 * n)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(4 * n)),
-    (Conv2DLayer, cp(4 * n)),
-    (Conv2DLayer, cp(4 * n)),
-    #(MaxPool2DLayer, pool_params()),
-    #(Conv2DLayer, cp(8 * n)),
-    #(Conv2DLayer, cp(8 * n)),
-    #(Conv2DLayer, cp(8 * n)),
-    #(MaxPool2DLayer, pool_params()),
-    #(Conv2DLayer, cp(16 * n)),
-    #(Conv2DLayer, cp(16 * n)),
+    (Conv2DLayer, conv_params(4 * n)),
+    (Conv2DLayer, conv_params(4 * n)),
+    (Conv2DLayer, conv_params(4 * n)),
     (RMSPoolLayer, pool_params(stride=(3, 3))),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, dp(1024)),
+    (DenseLayer, dense_params(1024)),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DropoutLayer, {'p': 0.5}),
-    (DenseLayer, dp(1024)),
+    (DenseLayer, dense_params(1024)),
     (FeaturePoolLayer, {'pool_size': 2}),
     (DenseLayer, {'num_units': 1}),
 ]
