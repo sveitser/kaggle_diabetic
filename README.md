@@ -1,4 +1,4 @@
-z Kaggle Diabetic Retinopathy Detection
+## Kaggle Diabetic Retinopathy Detection
 
 ### Installation
 Install dependencies via,
@@ -8,8 +8,19 @@ pip install -r requirements.txt
 Extract train/test images to ```data/train``` and ```data/test``` respectively.
 
 ### Usage
-A bash script to generate our final solution can be found in 
+#### Generating the kaggle solution
+A bash script to generate our final 2nd place solution can be found in 
 `make_kaggle_solution.sh`.
+
+Running all the commands sequentially will probaly take 7 - 10 days on good
+consumer grade hardware. If you have multiple GPUs you can speed things up
+by training the two networks at the same time. But due to the computationally
+heavy data augmentation it may be far less than twice as fast.
+
+You can also obtain a quadratic weighted kappa score of 0.840 on the private
+leaderboard by just training the 4x4 network and by doing on only 
+50 feature extracting iterations with the weights that gave you the best
+validation scores. The entire ensemble achieves a score of 0.845.
 
 #### Scripts
 All these python scripts can be invoced with `-h` to display a brief help
@@ -18,7 +29,6 @@ message.
 - `train_nn.py` trains convolutional networks
 - `transform.py` extracts features from trained convolutional networks
 - `blend.py` blends features, optionally using inputs from both patient eyes
-
 
 ```bash
 python NAME_OF_SCRIPT.py --help            # display command line parameters
