@@ -10,25 +10,34 @@ import tta
 import util
 
 @click.command()
-@click.option('--cnf', default='config/c_128_4x4_32.py',
+@click.option('--cnf', default='config/c_128_4x4_32.py', show_default=True,
               help="Path or name of configuration module.")
-@click.option('--n_iter', default=1,
+@click.option('--n_iter', default=1, show_default=True,
               help="Iterations for test time averaging.")
-@click.option('--skip', default=0,
+@click.option('--skip', default=0, show_default=True,
               help="Number of test time averaging iterations to skip.")
-@click.option('--test', is_flag=True, default=False)
-@click.option('--train', is_flag=True, default=False)
-@click.option('--weights_from', default=None,
-              help='Path to initial weights file.', type=str)
-def transform(cnf, n_iter, skip, test, train, weights_from):
+@click.option('--test', is_flag=True, default=False, show_default=True,
+              help="Extract features for test set. Ignored if --train_dir is "
+                   "specified.")
+@click.option('--train', is_flag=True, default=False, show_default=True,
+              help="Extract features for test set. Ignored if --test_dir is "
+                   "specified.")
+@click.option('--weights_from', default=None, show_default=True,
+              help='Path to weights file.', type=str)
+@click.option('--train_dir', default=None, show_default=True,
+              help="Directory with training set images.")
+@click.option('--test_dir', default=None, show_default=True,
+              help="Directory with test set images.")
+def transform(cnf, n_iter, skip, test, train, weights_from, 
+              train_dir, test_dir):
 
     config = util.load_module(cnf).config
 
     runs = {}
-    if train:
-        runs['train'] = config.get('train_dir')
-    if test:
-        runs['test'] = config.get('test_dir')
+    if train or train_dir:
+        runs['train'] = train_dir or config.get('train_dir')
+    if test or test_dir:
+        runs['test'] = test_dir or config.get('test_dir')
 
     net = nn.create_net(config)
 
@@ -51,7 +60,7 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
 
     for run, directory in sorted(runs.items(), reverse=True):
 
-        print("transforming {}".format(directory))
+        print("extracting features for files in {}".format(directory))
         tic = time.time()
 
         files = data.get_image_files(directory)
@@ -70,10 +79,10 @@ def transform(cnf, n_iter, skip, test, train, weights_from):
                 Xs += X
                 Xs2 += X**2
 
-            print('took {:6.1f}s'.format(time.time() - tic))
+            print('took {:6.1f} seconds'.format(time.time() - tic))
             if i % 5 == 0 or n_iter < 5:
                 std = np.sqrt((Xs2 - Xs**2 / i) / (i - 1))
-                config.save_transform(Xs / i, i, skip=skip,
+                config.save_features(Xs / i, i, skip=skip,
                                      test=True if run == 'test' else False)
                 config.save_std(std, i, skip=skip,
                                test=True if run == 'test' else False)

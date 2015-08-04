@@ -82,11 +82,16 @@ def save(img, fname):
     img.save(fname, quality=97)
 
 @click.command()
-@click.option('--directory', default='data/train')
-@click.option('--convert_directory', default='data/train_res')
-@click.option('--test', is_flag=True, default=False)
-@click.option('--crop_size', default=256)
-@click.option('--extension', default='tiff')
+@click.option('--directory', default='data/train', show_default=True,
+              help="Directory with original images.")
+@click.option('--convert_directory', default='data/train_res', show_default=True,
+              help="Where to save converted images.")
+@click.option('--test', is_flag=True, default=False, show_default=True,
+              help="Convert images one by one and examine them on screen.")
+@click.option('--crop_size', default=256, show_default=True,
+              help="Size of converted images.")
+@click.option('--extension', default='tiff', show_default=True,
+              help="Filetype of converted images.")
 def main(directory, convert_directory, test, crop_size, extension):
 
     try:

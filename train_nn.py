@@ -8,9 +8,9 @@ from nn import create_net
 
 
 @click.command()
-@click.option('--cnf', default='config/c_128_4x4_tiny.py',
+@click.option('--cnf', default='configs/c_128_4x4_tiny.py', show_default=True,
               help='Path or name of configuration module.')
-@click.option('--weights_from', default=None,
+@click.option('--weights_from', default=None, show_default=True,
               help='Path to initial weights file.')
 def main(cnf, weights_from):
 

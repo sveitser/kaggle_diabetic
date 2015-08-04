@@ -1,6 +1,6 @@
 """IO and data augmentation.
 
-Some of the data augmentation bits are taken from 
+The code for data augmentation originally comes from
 https://github.com/benanne/kaggle-ndsb/blob/master/data.py
 """
 from __future__ import division, print_function
@@ -18,6 +18,7 @@ from sklearn.utils import shuffle
 from sklearn import cross_validation
 
 RANDOM_STATE = 9
+FEATURE_DIR = 'data/features'
 
 # channel standard deviations
 STD = np.array([70.53946096, 51.71475228, 43.03428563], dtype=np.float32)
@@ -46,7 +47,6 @@ no_augmentation_params = {
 }
 
 
-# timings for in 512px out 448px: order=0: 19.8ms, order=1: 26ms
 def fast_warp(img, tf, output_shape, mode='constant', order=0):
     """
     This wrapper function is faster than skimage.transform.warp
@@ -303,22 +303,22 @@ def per_patient_reshape(X, X_other=None):
                       right_eye]).astype(np.float32)
 
 
-def load_transform(directory=None, transform_file=None, test=False):
+def load_features(directory=None, features_file=None, test=False):
 
-    if directory is None and transform_file is None:
-        raise ValueError("specify directory or transform file")
+    if directory is None and features_file is None:
+        raise ValueError("specify directory or features file")
 
-    if transform_file is None:
-        tfs = sorted(glob('{}/*'.format(directory))) 
+    if features_file is None:
+        feat_files = sorted(glob('{}/*'.format(directory))) 
     else:
-        tfs = [transform_file]
+        feat_files = [features_file]
     
     if test:
-        tfs = [tf for tf in tfs if 'test' in os.path.basename(tf)]
+        feat_files = [f for f in feat_files if 'test' in os.path.basename(f)]
     else:
-        tfs = [tf for tf in tfs if 'test' not in os.path.basename(tf)]
+        feat_files = [f for f in feat_files if 'train' in os.path.basename(f)]
 
-    data = [np.load(tf) for tf in tfs]
-    data = [t.reshape([t.shape[0], -1]) for t in data]
+    data = [np.load(f) for f in feat_files]
+    data = [X.reshape([X.shape[0], -1]) for X in data]
 
     return np.hstack(data)

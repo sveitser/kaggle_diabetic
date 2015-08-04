@@ -35,17 +35,17 @@ python transform.py --cnf config/c_512_4x4_32.py --train --test --n_iter 50 --sk
 python transform.py --cnf config/c_512_4x4_32.py --train --test --n_iter 50 --skip 100 --weights_from weights/c_512_4x4_32/weights_final.pkl
 
 # link feature files for blending
-mkdir -p data/features/{4x4,5x5}_{skip_0,skip_50,skip_100}
-ln -s $PWD/data/transform/c_512_4x4_32_train_{mean,std}_iter_50_skip_0.npy data/features/4x4_skip_0
-ln -s $PWD/data/transform/c_512_4x4_32_train_{mean,std}_iter_50_skip_50.npy data/features/4x4_skip_50
-ln -s $PWD/data/transform/c_512_4x4_32_train_{mean,std}_iter_50_skip_100.npy data/features/4x4_skip_100
-ln -s $PWD/data/transform/c_512_5x5_32_train_{mean,std}_iter_50_skip_0.npy data/features/5x5_skip_0
-ln -s $PWD/data/transform/c_512_5x5_32_train_{mean,std}_iter_50_skip_50.npy data/features/5x5_skip_50
-ln -s $PWD/data/transform/c_512_5x5_32_train_{mean,std}_iter_50_skip_100.npy data/features/5x5_skip_100
+mkdir -p data/final_blend/{4x4,5x5}_{skip_0,skip_50,skip_100}
+ln -s $PWD/data/features/c_512_4x4_32_train_{mean,std}_iter_50_skip_0.npy data/final_blend/4x4_skip_0
+ln -s $PWD/data/features/c_512_4x4_32_train_{mean,std}_iter_50_skip_50.npy data/final_blend/4x4_skip_50
+ln -s $PWD/data/features/c_512_4x4_32_train_{mean,std}_iter_50_skip_100.npy data/final_blend/4x4_skip_100
+ln -s $PWD/data/features/c_512_5x5_32_train_{mean,std}_iter_50_skip_0.npy data/final_blend/5x5_skip_0
+ln -s $PWD/data/features/c_512_5x5_32_train_{mean,std}_iter_50_skip_50.npy data/final_blend/5x5_skip_50
+ln -s $PWD/data/features/c_512_5x5_32_train_{mean,std}_iter_50_skip_100.npy data/final_blend/5x5_skip_100
 
 # validate
-python blend.py --per_patient
+python blend.py --directory data/final_blend --per_patient
 
 # make submission
-python blend.py --per_patient --predict
+python blend.py --directory data/final_blend --per_patient --predict
 

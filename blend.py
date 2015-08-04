@@ -1,4 +1,4 @@
-"""Blend features extracted with Conv Nets and make submissions."""
+"""Blend features extracted with Conv Nets and make predictions/submissions."""
 from __future__ import division, print_function
 from datetime import datetime
 from glob import glob
@@ -43,7 +43,7 @@ SCHEDULE = {
 class BlendNet(nn.Net):
 
     def set_split(self, files, labels):
-        """Override train/test split method."""
+        """Override train/test split method to use our default split."""
         def split(X, y, eval_size):
             if eval_size:
                 tr, te = data.split_indices(files, labels, eval_size)
@@ -80,50 +80,6 @@ class ResampleIterator(BatchIterator):
             yield self.transform(Xb, yb)
 
 
-class AdjustVariable(object):
-
-    def __init__(self, name, start=0.03, stop=0.001):
-        self.name = name
-        self.start, self.stop = start, stop
-        self.ls = None
-
-    def __call__(self, nn, train_history):
-        if self.ls is None:
-            self.ls = np.linspace(self.start, self.stop, nn.max_epochs)
-
-        epoch = train_history[-1]['epoch']
-        new_value = util.float32(self.ls[epoch - 1])
-        getattr(nn, self.name).set_value(new_value)
-
-
-class AdjustPower(object):
-
-    def __init__(self, name, start=START_LR, power=POWER):
-        self.name = name
-        self.start = start
-        self.power = power
-        self.ls = None
-
-    def __call__(self, nn, train_history):
-        if self.ls is None:
-            self.ls = self.start * np.array(
-                [(1.0 - float(n) / nn.max_epochs) ** self.power
-                 for n in range(nn.max_epochs)])
-
-        epoch = train_history[-1]['epoch']
-        new_value = util.float32(self.ls[epoch - 1])
-        getattr(nn, self.name).set_value(new_value)
-
-
-def get_nonlinearity():
-    return np.random.choice([rectify, leaky_rectify, very_leaky_rectify,
-                             sigmoid])
-
-
-def rrange(a, b):
-    return (np.random.rand() + a) * (b - a)
-
-
 def get_estimator(n_features, files, labels, eval_size=0.1):
     layers = [
         (InputLayer, {'shape': (None, n_features)}),
@@ -158,31 +114,35 @@ def get_estimator(n_features, files, labels, eval_size=0.1):
 
 
 @click.command()
-@click.option('--cnf', default='configs/c_128_4x4_32.py',
+@click.option('--cnf', default='configs/c_128_4x4_32.py', show_default=True,
               help="Path or name of configuration module.")
-@click.option('--predict', is_flag=True, default=False)
-@click.option('--per_patient', is_flag=True, default=False)
-@click.option('--transform_file', default=None)
-@click.option('--directory', default='data/features',
+@click.option('--predict', is_flag=True, default=False, show_default=True,
+              help="Make predictions on test set features after training.")
+@click.option('--per_patient', is_flag=True, default=False, show_default=True,
+              help="Blend features of both patient eyes.")
+@click.option('--features_file', default=None, show_default=True,
+              help="Read features from specified file.")
+@click.option('--directory', default=data.FEATURE_DIR, show_default=True,
               help="Blend once for each (sub)directory and file in directory")
-@click.option('--n_iter', default=1)
-def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
+@click.option('--n_iter', default=1, show_default=True,
+              help="Number of times to fit and average.")
+def fit(cnf, predict, per_patient, features_file, n_iter, directory):
 
     config = util.load_module(cnf).config
     image_files = data.get_image_files(config.get('train_dir'))
     names = data.get_names(image_files)
     labels = data.get_labels(names).astype(np.float32)[:, np.newaxis]
 
-    tf_dirs = glob('{}/*/'.format(directory))
-    tf_files = glob('{}/*.*'.format(directory))
+    feat_dirs = glob('{}/*/'.format(directory))
+    feat_files = glob('{}/*.*'.format(directory))
 
-    if transform_file is None:
-        X_trains = [data.load_transform(directory=directory)
-                    for directory in tf_dirs] \
-            + [data.load_transform(transform_file=transform_file)
-               for transform_file in tf_files]
+    if features_file is None:
+        X_trains = [data.load_features(directory=directory)
+                    for directory in feat_dirs] \
+            + [data.load_features(features_file=features_file)
+               for features_file in feat_files]
     else:
-        X_trains = [data.load_transform(transform_file=transform_file)]
+        X_trains = [data.load_features(features_file=features_file)]
 
     scalers = [StandardScaler() for _ in X_trains]
     X_trains = [scaler.fit_transform(X_train)
@@ -190,22 +150,22 @@ def fit(cnf, predict, per_patient, transform_file, n_iter, directory):
 
     if predict:
 
-        if transform_file is None:
-            X_tests = [data.load_transform(directory=directory, test=True)
-                       for directory in tf_dirs]
+        if features_file is None:
+            X_tests = [data.load_features(directory=directory, test=True)
+                       for directory in feat_dirs]
         else:
-            transform_file = transform_file.replace('train', 'test')
-            X_tests = [data.load_transform(test=True,
-                                           transform_file=transform_file)]
+            features_file = features_file.replace('train', 'test')
+            X_tests = [data.load_features(test=True,
+                                           features_file=features_file)]
 
         X_tests = [scaler.transform(X_test)
                    for scaler, X_test in zip(scalers, X_tests)]
 
-    # data.split_indices split per patient by default now
     tr, te = data.split_indices(image_files, labels)
 
     if not predict:
-        print("feature matrix {}".format(X_train.shape))
+
+        print("feature matrix shape {}".format(X_train.shape))
 
         y_preds = []
         for i in range(n_iter):
