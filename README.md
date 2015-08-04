@@ -1,12 +1,14 @@
-z# Kaggle Diabetic Retinopathy Detection
+# Kaggle Diabetic Retinopathy Detection
 
 ### Installation
-Install dependencies via,
+Install python dependencies via,
 ```
 pip install -r requirements.txt
 ```
-It is also recommended to have [CUDNN](https://developer.nvidia.com/cudnn)
- installed. The code should run without it but this hasn't been tested.
+You need a CUDA capable GPU with at least 4GB of memory.  It is also recommended 
+to have [CUDNN](https://developer.nvidia.com/cudnn) installed. The code should 
+run without it but this hasn't been tested. The code has only been tested on 
+python2 (not 3).
 
 Extract train/test images to `data/train` and `data/test` respectively.
 
@@ -36,7 +38,7 @@ message.
 - `blend.py` blends features, optionally blending inputs from both patient eyes
 
 ##### convert.py
-```bash
+```
 python convert.py --crop_size 128 --convert_directory data/train_tiny --extension tiff --directory data/train
 python convert.py --crop_size 128 --convert_directory data/test_tiny --extension tiff --directory data/test
 ```
@@ -44,18 +46,15 @@ python convert.py --crop_size 128 --convert_directory data/test_tiny --extension
 Usage: convert.py [OPTIONS]
 
 Options:
-  --directory TEXT          Directory with original images.  [default:
-                            data/train]
-  --convert_directory TEXT  Where to save converted images.  [default:
-                            data/train_res]
-  --test                    Convert images one by one and examine them on
-                            screen.  [default: False]
+  --directory TEXT          Directory with original images.  [default: data/train]
+  --convert_directory TEXT  Where to save converted images.  [default: data/train_res]
+  --test                    Convert images one by one and examine them on screen.  [default: False]
   --crop_size INTEGER       Size of converted images.  [default: 256]
   --extension TEXT          Filetype of converted images.  [default: tiff]
   --help                    Show this message and exit
 ```
 ##### train_nn.py
-```bash
+```
 python train_nn.py --cnf configs/c_128_5x5_32.py
 python train_nn.py --cnf configs/c_512_5x5_32.py --weights_from weigts/c_256_5x5_32/weights_final.pkl
 ```
@@ -63,8 +62,7 @@ python train_nn.py --cnf configs/c_512_5x5_32.py --weights_from weigts/c_256_5x5
 Usage: train_nn.py [OPTIONS]
 
 Options:
-  --cnf TEXT           Path or name of configuration module.  [default:
-                       configs/c_128_4x4_tiny.py]
+  --cnf TEXT           Path or name of configuration module.  [default: configs/c_128_4x4_tiny.py]
   --weights_from TEXT  Path to initial weights file.
   --help               Show this message and exit.
 ```
@@ -78,22 +76,18 @@ python transform.py --cnf config/c_128_5x5_32.py --n_iter 5 --test_dir path/to/o
 Usage: transform.py [OPTIONS]
 
 Options:
-  --cnf TEXT           Path or name of configuration module.  [default:
-                       config/c_128_4x4_32.py]
+  --cnf TEXT           Path or name of configuration module.  [default: config/c_128_4x4_32.py]
   --n_iter INTEGER     Iterations for test time averaging.  [default: 1]
-  --skip INTEGER       Number of test time averaging iterations to skip.
-                       [default: 0]
-  --test               Extract features for test set. Ignored if --train_dir
-                       is specified.  [default: False]
-  --train              Extract features for test set. Ignored if --test_dir is
-                       specified.  [default: False]
+  --skip INTEGER       Number of test time averaging iterations to skip. [default: 0]
+  --test               Extract features for test set. Ignored if --train_dir is specified.  [default: False]
+  --train              Extract features for test set. Ignored if --test_dir is specified.  [default: False]
   --weights_from TEXT  Path to weights file.
   --train_dir TEXT     Directory with training set images.
   --test_dir TEXT      Directory with test set images.
   --help               Show this message and exit.
 ```
 ##### blend.py
-```
+```bash
 python blend.py --per_patient --tranform_file data/features/c_128_5x5_32_train_mean_iter_5_skip_0.npy
 python blend.py --per_patient --directory data/features
 
@@ -102,14 +96,11 @@ python blend.py --per_patient --directory data/features
 Usage: blend.py [OPTIONS]
 
 Options:
-  --cnf TEXT            Path or name of configuration module.  [default:
-                        configs/c_128_4x4_32.py]
-  --predict             Make predictions on test set features after training.
-                        [default: False]
+  --cnf TEXT            Path or name of configuration module.  [default: configs/c_128_4x4_32.py]
+  --predict             Make predictions on test set features after training. [default: False]
   --per_patient         Blend features of both patient eyes.  [default: False]
   --features_file TEXT  Read features from specified file.
-  --directory TEXT      Blend once for each (sub)directory and file in
-                        directory  [default: data/features]
+  --directory TEXT      Blend once for each (sub)directory and file in directory  [default: data/features]
   --n_iter INTEGER      Number of times to fit and average.  [default: 1]
   --help                Show this message and exit.
 ```
