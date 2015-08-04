@@ -14,23 +14,23 @@ Extract train/test images to `data/train` and `data/test` respectively.
 
 ### Usage
 #### Generating the kaggle solution
-A bash script to generate our final 2nd place solution can be found in 
-`make_kaggle_solution.sh`.
+A commendet bash script to generate our final 2nd place solution can be found 
+in `make_kaggle_solution.sh`.
 
-Running all the commands sequentially will probaly take 7 - 10 days on good
+Running all the commands sequentially will probaly take 7 - 10 days on recent
 consumer grade hardware. If you have multiple GPUs you can speed things up
-by training the two networks at the same time. But due to the computationally
-heavy data augmentation it may be far less than twice as fast especially when
-working with the 512x512 pixel input images.
+by doing training and feature extraction for the two networks at the same time. 
+But due to the computationally heavy data augmentation it may be far less than
+twice as fast especially when working with 512x512 pixel input images.
 
 You can also obtain a quadratic weighted kappa score of 0.840 on the private
-leaderboard by just training the 4x4 networks and by running only 50 feature 
-extraction iterations with the weights that gave you the best validation scores. 
-The entire ensemble achieves a score of 0.845.
+leaderboard by just training the 4x4 kernel networks and by performing only 50 
+feature extraction iterations with the weights that gave you the best MSE 
+validation scores. The entire ensemble achieves a score of 0.845.
 
 #### Scripts
 All these python scripts can be invoked with `--help` to display a brief help
-message.
+message. They are meant to be executed in the order,
 
 - `convert.py` crops and resizes images
 - `train_nn.py` trains convolutional networks
