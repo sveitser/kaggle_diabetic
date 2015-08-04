@@ -167,7 +167,7 @@ def fit(cnf, predict, per_patient, features_file, n_iter, blend_cnf):
             else:
                 X = data.load_features(files, test=True)
                 X = scalers[run].transform(X)
-                X = data.per_patient_reshape() if per_patient else X
+                X = data.per_patient_reshape(X) if per_patient else X
                 y_pred = est.predict(X).ravel()
                 y_preds.append(y_pred)
 
