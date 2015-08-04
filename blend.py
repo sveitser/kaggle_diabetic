@@ -127,7 +127,9 @@ def get_estimator(n_features, files, labels, eval_size=0.1):
               help="Number of times to fit and average.")
 @click.option('--blend_cnf', default='blend.yml', show_default=True,
               help="Blending configuration file.")
-def fit(cnf, predict, per_patient, features_file, n_iter, blend_cnf):
+@click.option('--test_dir', default=None, show_default=True,
+              help="Override directory with test set images.")
+def fit(cnf, predict, per_patient, features_file, n_iter, blend_cnf, test_dir):
 
     config = util.load_module(cnf).config
     image_files = data.get_image_files(config.get('train_dir'))
@@ -176,7 +178,7 @@ def fit(cnf, predict, per_patient, features_file, n_iter, blend_cnf):
         y_pred = np.clip(np.round(y_pred),
                          np.min(labels), np.max(labels)).astype(int)
         submission_filename = util.get_submission_filename()
-        image_files = data.get_image_files(config.get('test_dir'))
+        image_files = data.get_image_files(test_dir or config.get('test_dir'))
         names = data.get_names(image_files)
         image_column = pd.Series(names, name='image')
         level_column = pd.Series(y_pred, name='level')

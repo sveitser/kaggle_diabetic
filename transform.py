@@ -24,18 +24,15 @@ import util
                    "specified.")
 @click.option('--weights_from', default=None, show_default=True,
               help='Path to weights file.', type=str)
-@click.option('--train_dir', default=None, show_default=True,
-              help="Directory with training set images.")
 @click.option('--test_dir', default=None, show_default=True,
-              help="Directory with test set images.")
-def transform(cnf, n_iter, skip, test, train, weights_from, 
-              train_dir, test_dir):
+              help="Override directory with test set images.")
+def transform(cnf, n_iter, skip, test, train, weights_from,  test_dir):
 
     config = util.load_module(cnf).config
 
     runs = {}
     if train or train_dir:
-        runs['train'] = train_dir or config.get('train_dir')
+        runs['train'] = config.get('train_dir')
     if test or test_dir:
         runs['test'] = test_dir or config.get('test_dir')
 

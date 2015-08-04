@@ -1,6 +1,9 @@
 # Kaggle Diabetic Retinopathy Detection
 
 ### Installation
+
+Extract train/test images to `data/train` and `data/test` respectively.
+
 Install python dependencies via,
 ```
 pip install -r requirements.txt
@@ -10,7 +13,9 @@ to have [CUDNN](https://developer.nvidia.com/cudnn) installed. The code should
 run without it but this hasn't been tested. The code has only been tested on 
 python2 (not 3).
 
-Extract train/test images to `data/train` and `data/test` respectively.
+Code was developed and tested on arch linux and hardware with a i7-2600k CPU,
+GTX 970 and 980Ti GPUs and 32 GB RAM. You probably need at least 4GB of GPU
+memory and 8GB of RAM to run all the code in this repository.
 
 ### Usage
 #### Generating the kaggle solution
@@ -19,8 +24,8 @@ in `make_kaggle_solution.sh`.
 
 Running all the commands sequentially will probaly take 7 - 10 days on recent
 consumer grade hardware. If you have multiple GPUs you can speed things up
-by doing training and feature extraction for the two networks at the same time. 
-But due to the computationally heavy data augmentation it may be far less than
+by doing training and feature extraction for the two networks in parallel. 
+However, due to the computationally heavy data augmentation it may be far less than
 twice as fast especially when working with 512x512 pixel input images.
 
 You can also obtain a quadratic weighted kappa score of 0.840 on the private
@@ -71,6 +76,7 @@ Options:
 ```
 python transform.py --cnf config/c_128_5x5_32.py --train --test --n_iter 5
 python transform.py --cnf config/c_128_5x5_32.py --n_iter 5 --test_dir path/to/other/image/files
+python transform.py --test_dir path/to/alternative/test/files
 ```
 ```
 Usage: transform.py [OPTIONS]
@@ -83,13 +89,14 @@ Options:
   --train              Extract features for test set. Ignored if --test_dir is specified.  [default: False]
   --weights_from TEXT  Path to weights file.
   --train_dir TEXT     Directory with training set images.
-  --test_dir TEXT      Directory with test set images.
+  --test_dir TEXT      Override directory with test set images.
   --help               Show this message and exit.
 ```
 ##### blend.py
 ```bash
-python blend.py --per_patient --tranform_file data/features/c_128_5x5_32_train_mean_iter_5_skip_0.npy
-python blend.py --per_patient --directory data/features
+python blend.py --per_patient # use configuration in blend.yml
+python blend.py --per_patient --feature_file path/to/feature/file
+python blend.py --per_patient --test_dir path/to/alternative/test/files
 
 ```
 ```
@@ -102,10 +109,17 @@ Options:
   --features_file TEXT  Read features from specified file.
   --directory TEXT      Blend once for each (sub)directory and file in directory  [default: data/features]
   --n_iter INTEGER      Number of times to fit and average.  [default: 1]
+  --test_dir TEXT       Override directory with test set images.
   --help                Show this message and exit.
 ```
 
 #### Configuration
-Most of the convolutional network configuration is done via the files in the 
-`config` directory.
+
+- The convolutional network configuration is done via the files in the `configs` directory.
+- To select different combinations of extracted features for blending edit  `blend.yml`.
+- To tune parameters related to blending edit `blend.py` directly.
+- To make predictions for a different test set either
+  + put the resized images into the `data/test_medium` directory
+  + or edit the `test_dir` field in your config file(s) inside the `configs` directory 
+  + or pass the `--test_dir /path/to/test/files` argument to `transform.py` and `blend.py`
 
