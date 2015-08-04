@@ -150,7 +150,7 @@ def fit(cnf, predict, per_patient, features_file, n_iter, blend_cnf):
             print("fitting features for run {}".format(run))
             X = data.load_features(files)
             X = scalers[run].fit_transform(X)
-            X = per_patient_reshape(X) if per_patient else X
+            X = data.per_patient_reshape(X) if per_patient else X
             est = get_estimator(X.shape[1], image_files, labels,
                                 eval_size=0.0 if predict else 0.1)
             est.fit(X, labels)
