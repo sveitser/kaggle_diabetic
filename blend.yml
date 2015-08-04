@@ -1,0 +1,23 @@
+# Default configuration for blending.
+#
+# blend.py will blend one model for each top level key using the 
+# feature files listed under the corresponding key
+#
+4x4_skip_0:
+    - c_512_4x4_32_train_mean_iter_50_skip_0.npy
+    - c_512_4x4_32_train_std_iter_50_skip_0.npy
+4x4_skip_50:
+    - c_512_4x4_32_train_mean_iter_50_skip_50.npy
+    - c_512_4x4_32_train_std_iter_50_skip_50.npy
+4x4_skip_100:
+    - c_512_4x4_32_train_mean_iter_50_skip_100.npy
+    - c_512_4x4_32_train_std_iter_50_skip_100.npy
+5x5_skip_0:
+    - c_512_5x5_32_train_mean_iter_50_skip_0.npy
+    - c_512_5x5_32_train_std_iter_50_skip_0.npy
+5x5_skip_50:
+    - c_512_5x5_32_train_mean_iter_50_skip_50.npy
+    - c_512_5x5_32_train_std_iter_50_skip_50.npy
+5x5_skip_100:
+    - c_512_5x5_32_train_mean_iter_50_skip_100.npy
+    - c_512_5x5_32_train_std_iter_50_skip_100.npy
