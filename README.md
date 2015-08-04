@@ -43,6 +43,7 @@ message. They are meant to be executed in the order,
 - `blend.py` blends features, optionally blending inputs from both patient eyes
 
 ##### convert.py
+Example usage:
 ```
 python convert.py --crop_size 128 --convert_directory data/train_tiny --extension tiff --directory data/train
 python convert.py --crop_size 128 --convert_directory data/test_tiny --extension tiff --directory data/test
@@ -59,6 +60,7 @@ Options:
   --help                    Show this message and exit
 ```
 ##### train_nn.py
+Example usage:
 ```
 python train_nn.py --cnf configs/c_128_5x5_32.py
 python train_nn.py --cnf configs/c_512_5x5_32.py --weights_from weigts/c_256_5x5_32/weights_final.pkl
@@ -73,6 +75,7 @@ Options:
 ```
 
 ##### transform.py
+Example usage:
 ```
 python transform.py --cnf config/c_128_5x5_32.py --train --test --n_iter 5
 python transform.py --cnf config/c_128_5x5_32.py --n_iter 5 --test_dir path/to/other/image/files
@@ -93,7 +96,8 @@ Options:
   --help               Show this message and exit.
 ```
 ##### blend.py
-```bash
+Example usage:
+```
 python blend.py --per_patient # use configuration in blend.yml
 python blend.py --per_patient --feature_file path/to/feature/file
 python blend.py --per_patient --test_dir path/to/alternative/test/files
@@ -107,8 +111,8 @@ Options:
   --predict             Make predictions on test set features after training. [default: False]
   --per_patient         Blend features of both patient eyes.  [default: False]
   --features_file TEXT  Read features from specified file.
-  --directory TEXT      Blend once for each (sub)directory and file in directory  [default: data/features]
   --n_iter INTEGER      Number of times to fit and average.  [default: 1]
+  --blend_cnf TEXT      Blending configuration file.  [default: blend.yml]
   --test_dir TEXT       Override directory with test set images.
   --help                Show this message and exit.
 ```
