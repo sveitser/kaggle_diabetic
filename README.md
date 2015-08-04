@@ -28,10 +28,11 @@ by doing training and feature extraction for the two networks in parallel.
 However, due to the computationally heavy data augmentation it may be far less than
 twice as fast especially when working with 512x512 pixel input images.
 
-You can also obtain a quadratic weighted kappa score of 0.840 on the private
-leaderboard by just training the 4x4 kernel networks and by performing only 50 
+You can also obtain a quadratic weighted kappa score of 0.839 on the private
+leaderboard by just training the 4x4 kernel networks and by performing only 20 
 feature extraction iterations with the weights that gave you the best MSE 
-validation scores. The entire ensemble achieves a score of 0.845.
+validation scores during training. The entire ensemble only achieves a 
+slightly higher score of 0.845.
 
 #### Scripts
 All these python scripts can be invoked with `--help` to display a brief help
