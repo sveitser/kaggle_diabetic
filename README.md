@@ -15,7 +15,9 @@ python2 (not 3).
 
 Code was developed and tested on arch linux and hardware with a i7-2600k CPU,
 GTX 970 and 980Ti GPUs and 32 GB RAM. You probably need at least 4GB of GPU
-memory and 8GB of RAM to run all the code in this repository.
+memory and 8GB of RAM as well as up to 160 GB of harddisk space (for converted
+images, network parameters and extracted features) to run all the 
+code in this repository.
 
 ### Usage
 #### Generating the kaggle solution
