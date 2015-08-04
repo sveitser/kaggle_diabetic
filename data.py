@@ -303,22 +303,19 @@ def per_patient_reshape(X, X_other=None):
                       right_eye]).astype(np.float32)
 
 
-def load_features(directory=None, features_file=None, test=False):
+def load_features(fnames, test=False):
 
-    if directory is None and features_file is None:
-        raise ValueError("specify directory or features file")
-
-    if features_file is None:
-        feat_files = sorted(glob('{}/*'.format(directory))) 
-    else:
-        feat_files = [features_file]
-    
     if test:
-        feat_files = [f for f in feat_files if 'test' in os.path.basename(f)]
-    else:
-        feat_files = [f for f in feat_files if 'train' in os.path.basename(f)]
+        fnames = [os.path.join(os.path.dirname(f), 
+                               os.path.basename(f).replace('train', 'test'))
+                  for f in fnames]
 
-    data = [np.load(f) for f in feat_files]
+    data = [np.load(f) for f in fnames]
     data = [X.reshape([X.shape[0], -1]) for X in data]
-
     return np.hstack(data)
+
+
+def parse_blend_config(cnf):
+    return {run: [os.path.join(FEATURE_DIR, f) for f in files] 
+            for run, files in cnf.items()}
+

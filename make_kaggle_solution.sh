@@ -36,7 +36,7 @@ python train_nn.py --cnf config/c_512_4x4_32.py --weights_from weights/c_256_4x4
 
 # Please note that you can save a lot of time while maintaining most of the
 # prediction accuracy by reducing the number of iterations from 50 down to 20 
-# or even fewer.
+# or even fewer or by only extracting the features for a single set of weights.
 
 # Extract features for network with 5x5 and 3x3 kernels.
 BEST_VALID_WEIGHTS="$(ls -t weights/c_512_5x5_32/best/ | head -n 1)"
@@ -53,19 +53,11 @@ python transform.py --cnf config/c_512_4x4_32.py --train --test --n_iter 50 --sk
 
 ########## Blend Features ##########
 
-# Link feature files for blending.
-# For each feature extraction run we put the final mean and std deviation
-# features into a separate directory. The blend.py script will then blend the 
-# features for each feature extraction run separately and average the predictions
-# before thresholding.
-
-mkdir -p data/final_blend/{4x4,5x5}_{skip_0,skip_50,skip_100}
-ln -s $PWD/data/features/c_512_4x4_32_train_{mean,std}_iter_50_skip_0.npy data/final_blend/4x4_skip_0
-ln -s $PWD/data/features/c_512_4x4_32_train_{mean,std}_iter_50_skip_50.npy data/final_blend/4x4_skip_50
-ln -s $PWD/data/features/c_512_4x4_32_train_{mean,std}_iter_50_skip_100.npy data/final_blend/4x4_skip_100
-ln -s $PWD/data/features/c_512_5x5_32_train_{mean,std}_iter_50_skip_0.npy data/final_blend/5x5_skip_0
-ln -s $PWD/data/features/c_512_5x5_32_train_{mean,std}_iter_50_skip_50.npy data/final_blend/5x5_skip_50
-ln -s $PWD/data/features/c_512_5x5_32_train_{mean,std}_iter_50_skip_100.npy data/final_blend/5x5_skip_100
+#
+#   To blend a different selection of feature files, modify blend.yml or
+#   pass --feature_file path/to/feature/file to blend.py to use a single
+#   feature file.
+#
 
 # validate
 python blend.py --directory data/final_blend --per_patient

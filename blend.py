@@ -14,6 +14,7 @@ from lasagne.layers import DenseLayer, InputLayer, FeaturePoolLayer
 from nolearn.lasagne import BatchIterator
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import StandardScaler
+import yaml
 
 import data
 import nn
@@ -25,7 +26,7 @@ START_LR = 0.0005
 END_LR = START_LR * 0.001
 L1 = 2e-5
 L2 = 0.005
-N_ITER = 100
+N_ITER = 1
 PATIENCE = 20
 POWER = 0.5
 N_HIDDEN_1 = 32
@@ -122,91 +123,58 @@ def get_estimator(n_features, files, labels, eval_size=0.1):
               help="Blend features of both patient eyes.")
 @click.option('--features_file', default=None, show_default=True,
               help="Read features from specified file.")
-@click.option('--directory', default=data.FEATURE_DIR, show_default=True,
-              help="Blend once for each (sub)directory and file in directory")
 @click.option('--n_iter', default=1, show_default=True,
               help="Number of times to fit and average.")
-def fit(cnf, predict, per_patient, features_file, n_iter, directory):
+@click.option('--blend_cnf', default='blend.yml', show_default=True,
+              help="Blending configuration file.")
+def fit(cnf, predict, per_patient, features_file, n_iter, blend_cnf):
 
     config = util.load_module(cnf).config
     image_files = data.get_image_files(config.get('train_dir'))
     names = data.get_names(image_files)
     labels = data.get_labels(names).astype(np.float32)[:, np.newaxis]
 
-    feat_dirs = glob('{}/*/'.format(directory))
-    feat_files = glob('{}/*.*'.format(directory))
-
-    if features_file is None:
-        X_trains = [data.load_features(directory=directory)
-                    for directory in feat_dirs] \
-            + [data.load_features(features_file=features_file)
-               for features_file in feat_files]
+    if features_file is not None:
+        runs = {'run': [features_file]}
     else:
-        X_trains = [data.load_features(features_file=features_file)]
+        runs = data.parse_blend_config(yaml.load(open(blend_cnf)))
 
-    scalers = [StandardScaler() for _ in X_trains]
-    X_trains = [scaler.fit_transform(X_train)
-                for scaler, X_train in zip(scalers, X_trains)]
-
-    if predict:
-
-        if features_file is None:
-            X_tests = [data.load_features(directory=directory, test=True)
-                       for directory in feat_dirs]
-        else:
-            features_file = features_file.replace('train', 'test')
-            X_tests = [data.load_features(test=True,
-                                           features_file=features_file)]
-
-        X_tests = [scaler.transform(X_test)
-                   for scaler, X_test in zip(scalers, X_tests)]
+    scalers = {run: StandardScaler() for run in runs}
 
     tr, te = data.split_indices(image_files, labels)
 
-    if not predict:
-
-        print("feature matrix shape {}".format(X_train.shape))
-
-        y_preds = []
-        for i in range(n_iter):
-            print("iteration {} / {}".format(i + 1, n_iter))
-            for X_train in X_trains:
-                print("fitting split training set")
-                X = data.per_patient_reshape(X_train) \
-                    if per_patient else X_train
-                est = get_estimator(X.shape[1], image_files, labels)
-                est.fit(X, labels)
-
+    y_preds = []
+    for i in range(n_iter):
+        print("iteration {} / {}".format(i + 1, n_iter))
+        for run, files in runs.items():
+            print("fitting features for run {}".format(run))
+            X = data.load_features(files)
+            X = scalers[run].fit_transform(X)
+            X = per_patient_reshape(X) if per_patient else X
+            est = get_estimator(X.shape[1], image_files, labels,
+                                eval_size=0.0 if predict else 0.1)
+            est.fit(X, labels)
+            if not predict:
                 y_pred = est.predict(X[te]).ravel()
                 y_preds.append(y_pred)
                 y_pred = np.mean(y_preds, axis=0)
                 y_pred = np.clip(np.round(y_pred).astype(int),
                                  np.min(labels), np.max(labels))
-
-                print("kappa at iteration ", i, util.kappa(labels[te], y_pred))
+                print("kappa after run {}, iter {}: {}".format(
+                    run, i, util.kappa(labels[te], y_pred)))
                 print("confusion matrix")
                 print(confusion_matrix(labels[te], y_pred))
-
-    if predict:
-
-        y_preds = []
-        for i in range(n_iter):
-            print("iteration {} / {}".format(i + 1, n_iter))
-            for X_train, X_test in zip(X_trains, X_tests):
-                print("fitting full training set")
-                X = per_patient_reshape(X_train) if per_patient else X_train
-                Xt = data.per_patient_reshape(X_test) \
-                    if per_patient else X_test
-                est = get_estimator(X.shape[1], image_files, labels, 
-                                    eval_size=0.0)
-                est.fit(X, labels)
-                y_pred = est.predict(Xt).ravel()
+            else:
+                X = data.load_features(files, test=True)
+                X = scalers[run].transform(X)
+                X = data.per_patient_reshape() if per_patient else X
+                y_pred = est.predict(X).ravel()
                 y_preds.append(y_pred)
 
+    if predict:
         y_pred = np.mean(y_preds, axis=0)
         y_pred = np.clip(np.round(y_pred),
                          np.min(labels), np.max(labels)).astype(int)
-
         submission_filename = util.get_submission_filename()
         image_files = data.get_image_files(config.get('test_dir'))
         names = data.get_names(image_files)
