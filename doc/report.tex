@@ -1,0 +1,40 @@
+\documentclass[12pt,a4paper]{scrartcl}
+\usepackage[utf8]{inputenc}
+%opening
+\title{Kaggle Diabetic Retinopath \\ Team o$\_$O solution}
+\author{Mathis Antony, Stephan Brüggemann}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We use convolutional neural networks with large color images, data augmentation, dynamic resampling for class imbalance and a ``per patient'' feature blending strategy which takes advantage of pairs of sample images for each patient. The final solution is a simple average of blends with features from two deep convolutional networks with different kernel sizes and three sets of weights for each network.
+\end{abstract}
+
+\section{Features Selection / Extraction}
+The images in this competition are too large to be conveniently trained with convolutional networks. We crop away all background and resize the images to squares of 128, 256 and 512 pixels. Other than that we don't apply any preprocessing.
+\section{Modeling Techniques and Training}
+\subsection{Network Architecture}
+\subsection{Resampling}
+The classes in the dataset are highly imbalanced. We found the following resampling strategy to work well empirically. Initially we sample from all classes such that all classes are represented equally on average. We then gradually oversample the rare classes less strongly. Mathematically if ${\bf w_0}$ are the initial resampling weights and ${\bf w_f}$ are the final resampling weights. The resampling weights at epoch $t$ are given by
+\begin{equation}
+{\bf w}_i = r^{t-1} {\bf w}_0 + (1 - r^{t-1}) {\bf w}_f
+\end{equation}
+where we set $r=0.975$ and ${\bf w}_f = [1, 2, 2, 2, 2]$ which were values we found to work well for initial convergence and final score.
+\subsection{Pretraining of smaller architectures}
+We didn't succeed in training the large convolutional networks from scratch. Instead we first trained smaller networks on 128 pixel images, then used the trained weights to (partially) initialize networks of intermediate size which were trained on 256 pixel images. Finally we repeated this procedure for the final networks that were trained on 512 pixel images.
+\subsection{Data Augmentation}
+We applied translation, stretching, rotation, flipping as well as color augmentation at all times.
+\subsection{Feature Extraction}
+We extracted features from the last pooling layer of the convolutional networks. To increase the quality of the extracted features we repeated the feature extraction up to 50 times (with different augmentations) per image and used the mean features as well as the standard deviation of each feature for blending.
+\subsection{Per Patient Blend}
+For each eye the mean and standard deviation features of the eye were concatenated with the mean and standard deviation of the patients' other eye as well as an indicator variable to distinguish left and right eye. These features were then fed into a small fully connected two layer network. Here we used L1 and L2 regularization as well as a different empirical resampling strategy to cope with the class imbalance.
+\section{Code Description}
+\section{Dependencies}
+\section{How To Generate the Solution}
+\section{Additional Comments and Observations}
+\section{Simple Features and Methods}
+\section{Figures}
+\section{References}
+\end{document}
