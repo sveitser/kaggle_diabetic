@@ -2,18 +2,19 @@
 
 ### Installation
 
-Extract train/test images to `data/train` and `data/test` respectively.
+Extract train/test images to `data/train` and `data/test` respectively and
+put the `trainLabels.csv` file into the `data` directory as well.
 
-Install python dependencies via,
+Install python2 dependencies via,
 ```
 pip install -r requirements.txt
 ```
-You need a CUDA capable GPU with at least 4GB of memory.  It is also recommended 
-to have [CUDNN](https://developer.nvidia.com/cudnn) installed. The code should 
-run without it but this hasn't been tested. The code has only been tested on 
-python2 (not 3).
+You need a CUDA capable GPU with at least 4GB of video memory.  It is also 
+recommended to have [CUDNN](https://developer.nvidia.com/cudnn) installed. 
+The code should run without it but this hasn't been tested. The code has not
+been tested with python3 either.
 
-Code was developed and tested on arch linux and hardware with a i7-2600k CPU,
+The project was developed and tested on arch linux and hardware with a i7-2600k CPU,
 GTX 970 and 980Ti GPUs and 32 GB RAM. You probably need at least 4GB of GPU
 memory and 8GB of RAM as well as up to 160 GB of harddisk space (for converted
 images, network parameters and extracted features) to run all the 
