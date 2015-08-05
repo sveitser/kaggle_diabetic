@@ -1,6 +1,4 @@
-"""
-Test-time augmentation tools
-"""
+"""Test-time augmentation tools"""
 
 import itertools
 
@@ -10,25 +8,19 @@ import ghalton
 import data
 import icdf
 
+from scipy.special import erfinv
 
-def build_transforms(**kwargs):
-    """
-    kwargs are lists of possible values.
-    e.g.: build_transforms(rotation=[0, 90, 180, 270], flip=[True, False])
 
-    the names of the arguments are the same as for data.build_augmentation_transform.
-    """
-    transforms = []
+def uniform(sample, lo=-1, hi=1):
+    return lo + (hi - lo) * sample
 
-    k = kwargs.keys()
-    combinations = list(itertools.product(*kwargs.values()))
-    combinations = [dict(zip(k, vals)) for vals in combinations]
 
-    for comb in combinations:
-        tf = data.build_augmentation_transform(**comb)
-        transforms.append(tf)
+def normal(sample, avg=0.0, std=1.0):
+    return avg + std * np.sqrt(2) * erfinv(2 * sample - 1)
 
-    return transforms
+
+def bernoulli(sample, p=0.5):
+    return (sample > p)
 
 
 def build_quasirandom_transforms(num_transforms, color_sigma, zoom_range, 
@@ -40,37 +32,37 @@ def build_quasirandom_transforms(num_transforms, color_sigma, zoom_range,
 
     tfs = []
     for s in uniform_samples:
-        rotation = icdf.uniform(s[0], *rotation_range)
-        shift_x = icdf.uniform(s[1], *translation_range)
-        shift_y = icdf.uniform(s[2], *translation_range)
+        rotation = uniform(s[0], *rotation_range)
+        shift_x = uniform(s[1], *translation_range)
+        shift_y = uniform(s[2], *translation_range)
         translation = (shift_x, shift_y)
 
         # setting shear last because we're not using it at the moment
-        shear = icdf.uniform(s[9], *shear_range)
+        shear = uniform(s[9], *shear_range)
 
         if do_flip:
-            flip = icdf.bernoulli(s[8], p=0.5)
+            flip = bernoulli(s[8], p=0.5)
         else:
             flip = False
 
         log_zoom_range = [np.log(z) for z in zoom_range]
         if isinstance(allow_stretch, float):
             log_stretch_range = [-np.log(allow_stretch), np.log(allow_stretch)]
-            zoom = np.exp(icdf.uniform(s[6], *log_zoom_range))
-            stretch = np.exp(icdf.uniform(s[7], *log_stretch_range))
+            zoom = np.exp(uniform(s[6], *log_zoom_range))
+            stretch = np.exp(uniform(s[7], *log_stretch_range))
             zoom_x = zoom * stretch
             zoom_y = zoom / stretch
         elif allow_stretch is True:  # avoid bugs, f.e. when it is an integer
-            zoom_x = np.exp(icdf.uniform(s[6], *log_zoom_range))
-            zoom_y = np.exp(icdf.uniform(s[7], *log_zoom_range))
+            zoom_x = np.exp(uniform(s[6], *log_zoom_range))
+            zoom_y = np.exp(uniform(s[7], *log_zoom_range))
         else:
-            zoom_x = zoom_y = np.exp(icdf.uniform(s[6], *log_zoom_range))
+            zoom_x = zoom_y = np.exp(uniform(s[6], *log_zoom_range))
         # the range should be multiplicatively symmetric, so [1/1.1, 1.1] instead of [0.9, 1.1] makes more sense.
 
         tfs.append(data.build_augmentation_transform((zoom_x, zoom_y),
                    rotation, shear, translation, flip))
 
-    color_vecs = [icdf.normal(s[3:6], avg=0.0, std=color_sigma) 
+    color_vecs = [normal(s[3:6], avg=0.0, std=color_sigma) 
                   for s in uniform_samples]
 
     return tfs, color_vecs
