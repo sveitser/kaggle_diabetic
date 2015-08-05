@@ -59,10 +59,10 @@ These augmentations were always applied.
     19 RMSPool            3       3      2  |     4     2       2
     20 Dropout
     21 Dense     1024
-    22 FeatPool   512
+    22 Maxout     512
     23 Dropout
     24 Dense     1024
-    25 FeatPool   512
+    25 Maxout     512
 ```
 - Leaky (0.01) rectifier units following each conv and dense layer.
 - Nesterov momentum with fixed schedule and 250 epochs.
@@ -98,16 +98,16 @@ final weights) for net A and B.
 
 For each eye (or patient) used the following as input features for blending,
 ```
-[this_eye_mean, other_eye_mean, this_eye_std, other_eye_std, left_eye_indicator]
+[this_eye_mean, other_eye_mean, this_eye_std, other_eye_std, right_eye_indicator]
 ```
 standardized all features to have zero mean and unit variance and used them to 
 train a network of shape,
 ```
     Input        8193
     Dense          32
-    FeaturePool    16
+    Maxout         16
     Dense          32
-    FeaturePool    16
+    Maxout         16
 ```
 - L1 regularization (2e-5) on the first layer and L2 regularization (0.005) 
   everywhere.
