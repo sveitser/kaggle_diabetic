@@ -115,7 +115,7 @@ def get_estimator(n_features, files, labels, eval_size=0.1):
 
 
 @click.command()
-@click.option('--cnf', default='configs/c_128_4x4_32.py', show_default=True,
+@click.option('--cnf', default='configs/c_512_4x4_32.py', show_default=True,
               help="Path or name of configuration module.")
 @click.option('--predict', is_flag=True, default=False, show_default=True,
               help="Make predictions on test set features after training.")
