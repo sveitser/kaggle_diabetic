@@ -1,7 +1,8 @@
 \documentclass[12pt,a4paper]{scrartcl}
 \usepackage{etex}
 \usepackage{fontspec}
-\setmainfont{DejaVuSerif}
+
+\setmainfont{FreeSerif}
 \usepackage[colorlinks=true]{hyperref}
 \usepackage{url}
 
@@ -14,7 +15,7 @@
 \maketitle
 
 \begin{abstract}
-We use convolutional neural networks trained with lasagne\footnote{\url{https://github.com/Lasagne/Lasagne}} and nolearn\footnote{\url{https://github.com/dnouri/nolearn}} with large color images, data augmentation, dynamic resampling for class imbalance and a ``per patient'' feature blending strategy which takes advantage of pairs of sample images for each patient. The final solution is a simple average of blends with features from two deep convolutional networks with different kernel sizes and three sets of weights for each network.
+We use convolutional neural networks trained with lasagne\footnote{\url{https://github.com/Lasagne/Lasagne}} and nolearn\footnote{\url{https://github.com/dnouri/nolearn}} with large color images, various types of data augmentation, dynamic resampling for class imbalance and a ``per patient'' feature blending strategy which takes advantage of having pairs of sample images for each patient at our disposal. The final solution is a simple average of blends with features from two deep convolutional networks and three sets of weights for each network.
 \end{abstract}
 
 \section{Features Selection / Extraction}
@@ -58,11 +59,7 @@ The network architectures of our conv nets are show in table \ref{tab:arch}.
 \label{tab:arch}
 \end{table}
 
-\begin{itemize}
-\item
-  Leaky (0.01) rectifier units following each convolutional and fully connected (dense) layer.
-\item
-  For the learning rate we used nesterov momentum with fixed schedule over 250 epochs.
+For nonlinearity we used leaky (0.01) rectifier units following each convolutional and fully connected (dense) layer. The networks were trained with nesterov momentum with fixed schedule over 250 epochs.
   \begin{itemize}
   \item
     epoch 0: 0.003
@@ -71,15 +68,8 @@ The network architectures of our conv nets are show in table \ref{tab:arch}.
   \item
     epoch 220: 0.00003
   \end{itemize}
-      For the nets for 256 and 128 pixels images we stopped training
-      already after 200 epochs.
-\item
-  L2 weight decay factor 0.0005
-\item
-  Mean squared error objective with thresholds at $(0.5, 1.5, 2.5, 3.5)$ to obtain integer levels.
-\item
-  Untied biases.
-\end{itemize}
+For the nets for 256 and 128 pixels images we stopped training
+already after 200 epochs. We applied L2 weight decay with factor 0.0005 to all layers. We treated the problem as a regression problem with mean squared error  objective and thresholded at $(0.5, 1.5, 2.5, 3.5)$ to obtain integer levels for computing the kappa score and making submissions. We also used untied biases.
 %
 \subsection{Resampling}
 The classes in the dataset are highly imbalanced. We found the following resampling strategy to work well in practice. Initially we sample from all classes such that all classes are represented equally on average. We then gradually oversample the rare classes less strongly. Mathematically if ${\bf w_0}$ are the initial resampling weights and ${\bf w_f}$ are the final resampling weights. The resampling weights at epoch $t$ are given by
@@ -152,7 +142,7 @@ where $\delta_\textrm{right} \in \{0, 1\}$ is in an indicator variable for right
 \section{Code Description}
 Please refer to the README.md file in the code repository.
 \section{Dependencies}
-Dependencies can be found in the requirements.txt file in the code repository.
+Please refer to the README.md and requirements.txt files in the code repository.
 \section{How To Generate the Solution}
 Please refer to the README.md and make$\_$kaggle$\_$solution.sh files in the code repository.
 \section{Additional Comments and Observations}
