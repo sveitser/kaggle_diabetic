@@ -4,11 +4,9 @@ import itertools
 
 import numpy as np
 import ghalton
+from scipy.special import erfinv
 
 import data
-import icdf
-
-from scipy.special import erfinv
 
 
 def uniform(sample, lo=-1, hi=1):
