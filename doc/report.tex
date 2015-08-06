@@ -15,12 +15,14 @@
 
 \maketitle
 
+This is a competition report for the Kaggle Diabetic Retinopathy Detection competition\footnote{\url{https://www.kaggle.com/c/diabetic-retinopathy-detection}}.
+
 \begin{abstract}
 We use convolutional neural networks trained with lasagne\footnote{\url{https://github.com/Lasagne/Lasagne}} and nolearn\footnote{\url{https://github.com/dnouri/nolearn}} with large color images, various types of data augmentation, dynamic resampling for class imbalance and a ``per patient'' feature blending strategy which takes advantage of having pairs of sample images for each patient at our disposal. The final solution is a simple average of blends with features from two deep convolutional networks and three sets of weights for each network.
 \end{abstract}
 
 \section{Features Selection / Extraction}
-The images in this competition are too large to be conveniently trained with convolutional networks and the hardware at our disposal. We crop away all background and resize the images to squares of 128, 256 and 512 pixel. We don't apply any other image preprocessing steps.
+The images in this competition are too large to be conveniently trained with convolutional networks and the hardware at our disposal. We crop away all background and resize the images to squares of 128, 256 and 512 pixel. We don't apply any other image (pre)processing steps.
 \section{Modeling Techniques and Training}
 \subsection{Summary of Network Architecture}
 The network architectures of our conv nets are shown in table \ref{tab:arch}.
@@ -77,7 +79,7 @@ The classes in the dataset are highly imbalanced. We found the following resampl
 {\bf w}_i = r^{t-1} {\bf w}_0 + (1 - r^{t-1}) {\bf w}_f
 \end{equation}
 where we set $r=0.975$, ${\bf w}_0 \approx (1.36, 14.4, 6.64, 40.2, 49.6)$ and ${\bf w}_f = (1, 2, 2, 2, 2)$ which were values we found to work well for initial convergence and final score. We think it is likely that similar or better results could be achieved by using a dynamically weighted objective function but being still unfamiliar with the theano library we decided to opt for resampling instead as it was easier to implement.
-\subsection{Initialization and Pretraining of smaller architectures}
+\subsection{Initialization and ''Pretraining`` of Smaller Architectures}
 We didn't succeed in training the large convolutional networks from scratch. We first train smaller networks on 128 pixel images, then we use the trained weights to (partially) initialize networks of intermediate size which are then trained on 256 pixel images. Finally we repeat this procedure for the final networks that and train them on 512 pixel images. We use orthogonal\footnote{https://github.com/Lasagne/Lasagne/blob/master/lasagne/init.py\#L329-L359} initialization for weights and constants for biases.
 \subsection{Data Augmentation}
 We apply translation, stretching, rotation, flipping as well as color augmentation at all times. We also scale and center each image channel (RGB) to have zero mean and unit variance over the training set. The output sizes for the data augmentation pipeline are 112/224/448 pixel for the 128/256/512 pixel input images. 
@@ -138,10 +140,6 @@ We also noticed that blending the features for both patient eyes leads to signif
 %\section{Figures}
 \section{Acknowledgments}
 We want to thank kaggle, the California Healthcare Foundation and EyePACS for putting the competition together.
-A lot of inspiration and some code was adapted from code published by winners of the national data science bowl competition. 
-\begin{itemize}
-\item \href{https://github.com/benanne/kaggle-ndsb}{≋ Deep Sea ≋}: data augmentation, RMS pooling, pseudo random augmentation averaging (used for feature extraction here)
-\item \href{https://www.kaggle.com/c/datasciencebowl/forums/t/13166/happy-lantern-festival-report-and-code}{Happy Lantern Festival} Capacity and coverage analysis for convolutional network architectures (now built into the nolearn library)
-\end{itemize}
-Last but not least we want to thank the open source community and especially the contributors to lasagne and nolearn for all the awesome software and documentation without which none of this would have been possible.
+We also thank the winners\footnote{\url{https://github.com/benanne/kaggle-ndsb}}\footnote{\url{ https://www.kaggle.com/c/datasciencebowl/forums/t/13166/happy-lantern-festival-report-and-code}} of the national data science bowl competition for their code and reports which heavily influenced our solution.
+Last but not least we want to thank the open source community and especially the contributors to lasagne and nolearn for all the awesome software and documentation which enabled us to compete in this way.
 \end{document}
