@@ -1,6 +1,7 @@
 \documentclass[12pt,a4paper]{scrartcl}
 \usepackage{etex}
 \usepackage{fontspec}
+\usepackage{verbatimbox}
 
 \setmainfont{FreeSerif}
 \usepackage[colorlinks=true]{hyperref}
@@ -19,13 +20,11 @@ We use convolutional neural networks trained with lasagne\footnote{\url{https://
 \end{abstract}
 
 \section{Features Selection / Extraction}
-The images in this competition are too large to be conveniently trained with convolutional networks and the hardware at our disposal. We crop away all background and resize the images to squares of 128, 256 and 512 pixels. Other than that we don't apply any preprocessing.
+The images in this competition are too large to be conveniently trained with convolutional networks and the hardware at our disposal. We crop away all background and resize the images to squares of 128, 256 and 512 pixel. We don't apply any other image preprocessing steps.
 \section{Modeling Techniques and Training}
 \subsection{Summary of Network Architecture}
-The network architectures of our conv nets are show in table \ref{tab:arch}.
-\begin{table}[ht]
-{\small
-\begin{verbatim}
+The network architectures of our conv nets are shown in table \ref{tab:arch}.
+\begin{verbbox}
                             net A       |          net B
             units   filter stride size  |  filter stride size
  1 Input                           448  |     4           448
@@ -53,13 +52,15 @@ The network architectures of our conv nets are show in table \ref{tab:arch}.
 23 Dropout
 24 Dense     1024
 25 Maxout     512
-\end{verbatim}
-}
-\caption{Convolutional network architectures}
+\end{verbbox}
+\begin{table}[ht]
+\centering
+\theverbbox
+\caption{Convolutional network architectures.}
 \label{tab:arch}
 \end{table}
-
-For nonlinearity we used leaky (0.01) rectifier units following each convolutional and fully connected (dense) layer. The networks were trained with nesterov momentum with fixed schedule over 250 epochs.
+%
+For nonlinearity we use leaky (0.01) rectifier units following each convolutional and fully connected (dense) layer. The networks are trained with nesterov momentum with fixed schedule over 250 epochs.
   \begin{itemize}
   \item
     epoch 0: 0.003
@@ -68,104 +69,79 @@ For nonlinearity we used leaky (0.01) rectifier units following each convolution
   \item
     epoch 220: 0.00003
   \end{itemize}
-For the nets for 256 and 128 pixels images we stopped training
-already after 200 epochs. We applied L2 weight decay with factor 0.0005 to all layers. We treated the problem as a regression problem with mean squared error  objective and thresholded at $(0.5, 1.5, 2.5, 3.5)$ to obtain integer levels for computing the kappa score and making submissions. We also used untied biases.
+For the nets for 256 and 128 pixel images we stop training already after 200 epochs. We apply L2 weight decay with factor 0.0005 to all layers. We treat the problem as a regression problem with mean squared error objective and threshold at $(0.5, 1.5, 2.5, 3.5)$ to obtain integer levels for computing the kappa scores and making submissions. The convolutional networks have untied biases.
 %
 \subsection{Resampling}
-The classes in the dataset are highly imbalanced. We found the following resampling strategy to work well in practice. Initially we sample from all classes such that all classes are represented equally on average. We then gradually oversample the rare classes less strongly. Mathematically if ${\bf w_0}$ are the initial resampling weights and ${\bf w_f}$ are the final resampling weights. The resampling weights at epoch $t$ are given by
+The classes in the dataset are highly imbalanced. We found the following resampling strategy to work well in practice. Initially we sample from all classes such that all classes are represented equally on average. We then gradually decrease oversampling of rare classes. Let ${\bf w_0}$ be the initial resampling weights and ${\bf w_f}$ the final resampling weights. The resampling weights for level 0 to 4 at epoch $t$ are given by
 \begin{equation}
 {\bf w}_i = r^{t-1} {\bf w}_0 + (1 - r^{t-1}) {\bf w}_f
 \end{equation}
-where we set $r=0.975$, ${\bf w}_0 \approx (1.36, 14.4, 6.64, 40.2, 49.6)$ and ${\bf w}_f = (1, 2, 2, 2, 2)$ which were values we found to work well for initial convergence and final score. It's likely similar or better results could be achieved by using a dynamically weighted objective function but being very unfamiliar with the theano library we abandoned that approach we decided to opt for resampling instead as it was straight forward to implement.
+where we set $r=0.975$, ${\bf w}_0 \approx (1.36, 14.4, 6.64, 40.2, 49.6)$ and ${\bf w}_f = (1, 2, 2, 2, 2)$ which were values we found to work well for initial convergence and final score. We think it is likely that similar or better results could be achieved by using a dynamically weighted objective function but being still unfamiliar with the theano library we decided to opt for resampling instead as it was easier to implement.
 \subsection{Initialization and Pretraining of smaller architectures}
-We didn't succeed in training the large convolutional networks from scratch. Instead we first trained smaller networks on 128 pixel images, then used the trained weights to (partially) initialize networks of intermediate size which were trained on 256 pixel images. Finally we repeated this procedure for the final networks that were trained on 512 pixel images. We used orthogonal\footnote{https://github.com/Lasagne/Lasagne/blob/master/lasagne/init.py\#L329-L359} initialization for weights and constant initialization for biases.
+We didn't succeed in training the large convolutional networks from scratch. We first train smaller networks on 128 pixel images, then we use the trained weights to (partially) initialize networks of intermediate size which are then trained on 256 pixel images. Finally we repeat this procedure for the final networks that and train them on 512 pixel images. We use orthogonal\footnote{https://github.com/Lasagne/Lasagne/blob/master/lasagne/init.py\#L329-L359} initialization for weights and constants for biases.
 \subsection{Data Augmentation}
-We applied translation, stretching, rotation, flipping as well as color augmentation at all times. We also scaled and centered each image channel (RGB) to have zero mean and unit variance over the training set.
-
-The output sizes for the data augmentation pipeline were 112/224/448 pixel for the 128/256/512 pixel input images. 
+We apply translation, stretching, rotation, flipping as well as color augmentation at all times. We also scale and center each image channel (RGB) to have zero mean and unit variance over the training set. The output sizes for the data augmentation pipeline are 112/224/448 pixel for the 128/256/512 pixel input images. 
 \subsection{Feature Extraction}
-We extracted features from the last pooling layer of the convolutional networks. To increase the quality of the extracted features we repeated the feature extraction up to 50 times (with different augmentations) per image and used the mean features as well as the standard deviation of each feature for blending.
+We extract features from the last pooling layer of the convolutional networks. To increase the quality of the extracted features, we repeat the feature extraction up to 50 times (with different augmentations) per image and use the mean and standard deviation of each feature as input to our blending network.
 \subsection{Per Patient Blend}
-For each eye the mean and standard deviation features of the eye were concatenated with the mean and standard deviation of the patients' other eye as well as an indicator variable to distinguish left and right eye. These features were then fed into a small fully connected two layer network. Here we used L1 and L2 regularization as well as a different empirical resampling strategy to cope with the class imbalance.
-
-
-We extracted mean ($\mu$) and standard deviation ($\sigma$) of the RMSPool layer for 50 pseudo random augmentations for three sets of weights (best validation score,
-best kappa, final weights) for net A and B.
-
-For each eye (or patient) used the following as input features for
+We extract mean ($\mu$) and standard deviation ($\sigma$) of the RMSPool layer output for 50 pseudo random augmentations for three sets of weights (best validation score, best kappa, final weights) for net A and B. For each eye (or patient) use the following as input features for
 blending,
-
 \[
 {\bf x} = (\mu_\textrm{this eye}, \mu_\textrm{other eye}, \sigma_\textrm{this eye}, \sigma_\textrm{other eye}, \delta_\textrm{right})
 \]
-
-where $\delta_\textrm{right} \in \{0, 1\}$ is in an indicator variable for right eyes. We standardized all features to have zero mean and unit variance and use them to train a network of shape,
-
-\begin{verbatim}
-    Input        8193
-    Dense          32
-    Maxout         16
-    Dense          32
-    Maxout         16
-\end{verbatim}
-
-\begin{itemize}
-\itemsep1pt\parskip0pt\parsep0pt
-\item We added L1 regularization with factor 2e-5 on the first layer and L2 regularization
-  with factor 0.005 on all layers.
-\item
-  Adam\footnote{\url{http://arxiv.org/abs/1412.6980}} Updates with fixed
-  learning rate schedule over 100 epochs.
-  \begin{itemize}
-\item
-  epoch 0: 5e-4
-\item
-  epoch 60: 5e-5
-\item
-  epoch 80: 5e-6
-\item
-  epoch 90: 5e-7
-  \end{itemize}
-\item
-  Mean squared error objective.
-\item
-  Batches of size 128, replace batch with probability
-  \begin{itemize}
-\item
-  0.2 with batch sampled such that classes are balanced
-\item
-  0.5 with batch sampled uniformly from all images (shuffled)
- \end{itemize}
-\end{itemize}
-
+where $\delta_\textrm{right} \in \{0, 1\}$ is an indicator variable for right eyes. We standardize all features to have zero mean and unit variance and use them to train a simple fully connected network with the architecture shown in table \ref{tab:blend}. The training procedure for the blend network is summarized below.
+\begin{verbbox}
+Input        8193
+Dense          32
+Maxout         16
+Dense          32
+Maxout         16
+\end{verbbox}
+\begin{table}[ht]
+\centering
+\theverbbox
+\caption{Blend network architecture.}
+\label{tab:blend}
+\end{table}
 %
-\section{Code Description}
-Please refer to the README.md file in the code repository.
-\section{Dependencies}
-Please refer to the README.md and requirements.txt files in the code repository.
-\section{How To Generate the Solution}
+\begin{itemize}
+\item Rectifier nonlinearities after each fully connected (dense) layer.
+\item L1 regularization with factor 2e-5 is applied to the first layer and L2 regularization with factor 0.005 is applied on every layer.
+\item Adam\footnote{\url{http://arxiv.org/abs/1412.6980}} updates with fixed learning rate schedule over 100 epochs.
+\begin{itemize}
+\item epoch 0: 5e-4
+\item epoch 60: 5e-5
+\item epoch 80: 5e-6
+\item epoch 90: 5e-7
+\end{itemize}
+\item Mean squared error objective.
+\item Batches of size 128, replace batch with probability
+\begin{itemize}
+\item 0.2 with batch sampled such that classes are balanced
+\item 0.5 with batch sampled uniformly from all images (shuffled)
+\end{itemize}
+\end{itemize}
+The score of our final ensemble without per patient blend is 0.824 on the private leaderboard. With per patient blend that score increases to 0.845.
+%
+\section{Generating our Solution}
 Please refer to the README.md and make$\_$kaggle$\_$solution.sh files in the code repository.
+
 \section{Additional Comments and Observations}
-The data set for this competition is special in that the images contain important features such as Micro-aneurysms which are very small with respect to the size of the retina. We've learned that it's important for performance to use rather large input images to train the convolutional networks. The convolutional neural networks achieved quadratic weighted kappa scores of 0.70 for 256 pixel images and 0.80 for 512 pixel images on the validation set. We also tried 768 pixel images and this further increased kappa to 0.81. At this point the data augmentation became computationally very demanding and as we didn't see a significant improvement after blending per patient features from the 768 pixel images over the 512 pixel images we stuck with the latter.
+The data set for this competition is special in that the images contain important features such as Micro-aneurysms which are very small with respect to the size of the retina. We've learned that it's important for performance to use rather large input images. On our 10\% validation set, our convolutional neural networks achieve kappa scores of 0.70 for 256 pixel images and 0.80 for 512 pixel images. We also tried 768 pixel images and this further increased kappa to 0.81. At this point the data augmentation became computationally very demanding and as we didn't see a significant improvement after blending per patient features going from 512 pixel to 768 pixel images we stuck with the latter.
 
-It is considerably easier to train the large convolutional networks when the leaky rate of leaky rectifiers is increased. However we also found that for a given network architecture the performance of the leaky rectifiers network (with leaky rate 0.01 and trained with the strategy mentioned above) is slightly higher than that for very leaky rectifiers (with leaky rate 0.33, and trained from scratch). The difference is rather small but significant for competition results. After blending features for a single network the validation kappa would reach about 0.84 for leaky rectifiers and 0.83 for very leaky rectifiers. After switching from leaky to very leaky rectifier we spent about a month chasing down the origin of this 0.01 kappa gap, because the validation scores of the convolutional networks (before feature blending) were comparable for both types of rectifier units which lead us to believe we should have been getting the comparable kappa scores after blending.
-
+It is considerably easier to train the large convolutional networks when the leaky rate of the rectifiers is increased. A per patient blend of features extracted over 50 pseudo random augmentations would achieve a validation kappa score of about 0.84. When we switched to using very leaky rectifiers (with leaky rate 0.33) and trained the large network from scratch that the score would decrease to about 0.83. The difference is rather small but significant for competition results. We were thrown off track for quite a while because that drop in performance would only manifest itself after blending, but not during training where the validation kappas for both types of rectifier units were very similar. After ruling out any other factors, we concluded that either the change in rectifier units or the change in training procedure (initialization from smaller nets versus training from scratch) caused the decrease in performance. Towards the end of the competition we simply went back to using 0.01 leaky rectifiers everywhere.
+%
 \section{Simple Features and Methods}
-Our final solution is an average of six per patient blends for the two convolutional network architectures and three different set of trained weights. Ensembling only increased the private leaderboard score from 0.84 to 0.845 and one would have to verify if this small performance increase justifies training a second network and extracting features six times as many augmentations of each input image.
+Our final solution is an average of six per patient blends for the two convolutional network architectures and three different set of trained weights. Ensembling only increased the private leaderboard score from 0.840 to 0.845 and one would have to decide if this small performance increase justifies training a second network and extracting features for six times as many augmentations of each input image.
 
 We also noticed that blending the features for both patient eyes leads to significant performance improvements for various types of architectures. For this particular problem it provides a simple way to improve performance without having to redo or modify the feature extraction part of the pipeline.
 %\section{Figures}
-\section{Acknowledgment}A lot of inspiration and some code was taken from winners of the
-national data science bowl competition. Thanks!
+\section{Acknowledgments}
+We want to thank kaggle, the California Healthcare Foundation and EyePACS for putting the competition together.
+A lot of inspiration and some code was adapted from code published by winners of the national data science bowl competition. 
 \begin{itemize}
-\item
-  \href{https://github.com/benanne/kaggle-ndsb}{≋ Deep Sea ≋}: data
-  augmentation, RMS pooling, pseudo random augmentation averaging (used
-  for feature extraction here)
-\item
-  \href{https://www.kaggle.com/c/datasciencebowl/forums/t/13166/happy-lantern-festival-report-and-code}{Happy
-  Lantern Festival} Capacity and coverage analysis of conv nets (it's
-  built into nolearn)
+\item \href{https://github.com/benanne/kaggle-ndsb}{≋ Deep Sea ≋}: data augmentation, RMS pooling, pseudo random augmentation averaging (used for feature extraction here)
+\item \href{https://www.kaggle.com/c/datasciencebowl/forums/t/13166/happy-lantern-festival-report-and-code}{Happy Lantern Festival} Capacity and coverage analysis for convolutional network architectures (now built into the nolearn library)
 \end{itemize}
-
+Last but not least we want to thank the open source community and especially the contributors to lasagne and nolearn for all the awesome software and documentation without which none of this would have been possible.
 \end{document}
