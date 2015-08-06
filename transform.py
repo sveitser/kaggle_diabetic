@@ -10,7 +10,7 @@ import tta
 import util
 
 @click.command()
-@click.option('--cnf', default='config/c_512_4x4_32.py', show_default=True,
+@click.option('--cnf', default='configs/c_512_4x4_32.py', show_default=True,
               help="Path or name of configuration module.")
 @click.option('--n_iter', default=1, show_default=True,
               help="Iterations for test time averaging.")
