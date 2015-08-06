@@ -60,8 +60,8 @@ python transform.py --cnf config/c_512_4x4_32.py --train --test --n_iter 50 --sk
 #
 
 # validate
-python blend.py --directory data/final_blend --per_patient
+python blend.py --per_patient
 
 # make submission
-python blend.py --directory data/final_blend --per_patient --predict
+python blend.py --per_patient --predict
 
