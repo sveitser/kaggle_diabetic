@@ -22,10 +22,10 @@ code in this repository.
 
 ### Usage
 #### Generating the kaggle solution
-A commendet bash script to generate our final 2nd place solution can be found 
+A commented bash script to generate our final 2nd place solution can be found 
 in `make_kaggle_solution.sh`.
 
-Running all the commands sequentially will probaly take 7 - 10 days on recent
+Running all the commands sequentially will probably take 7 - 10 days on recent
 consumer grade hardware. If you have multiple GPUs you can speed things up
 by doing training and feature extraction for the two networks in parallel. 
 However, due to the computationally heavy data augmentation it may be far less than
