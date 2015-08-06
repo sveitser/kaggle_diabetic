@@ -6,10 +6,6 @@ import numpy as np
 import data
 import util
 
-def process(fname):
-    img = util.load_image_uint_one(fname)
-    return np.hstack([mh.features.haralick(channel).ravel() 
-                      for channel in img])
 
 @click.command()
 @click.option('--directory', default='data/train_tiny')
