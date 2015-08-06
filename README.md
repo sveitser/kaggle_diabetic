@@ -89,13 +89,12 @@ python transform.py --test_dir path/to/alternative/test/files
 Usage: transform.py [OPTIONS]
 
 Options:
-  --cnf TEXT           Path or name of configuration module.  [default: config/c_128_4x4_32.py]
+  --cnf TEXT           Path or name of configuration module.  [default: configs/c_512_4x4_32.py]
   --n_iter INTEGER     Iterations for test time averaging.  [default: 1]
   --skip INTEGER       Number of test time averaging iterations to skip. [default: 0]
-  --test               Extract features for test set. Ignored if --train_dir is specified.  [default: False]
-  --train              Extract features for test set. Ignored if --test_dir is specified.  [default: False]
+  --test               Extract features for test set. Ignored if --test_dir is specified.  [default: False]
+  --train              Extract features for training set.  [default: False]
   --weights_from TEXT  Path to weights file.
-  --train_dir TEXT     Directory with training set images.
   --test_dir TEXT      Override directory with test set images.
   --help               Show this message and exit.
 ```

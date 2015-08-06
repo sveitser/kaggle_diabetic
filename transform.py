@@ -17,11 +17,10 @@ import util
 @click.option('--skip', default=0, show_default=True,
               help="Number of test time averaging iterations to skip.")
 @click.option('--test', is_flag=True, default=False, show_default=True,
-              help="Extract features for test set. Ignored if --train_dir is "
-                   "specified.")
-@click.option('--train', is_flag=True, default=False, show_default=True,
               help="Extract features for test set. Ignored if --test_dir is "
                    "specified.")
+@click.option('--train', is_flag=True, default=False, show_default=True,
+              help="Extract features for training set.")
 @click.option('--weights_from', default=None, show_default=True,
               help='Path to weights file.', type=str)
 @click.option('--test_dir', default=None, show_default=True,
@@ -31,7 +30,7 @@ def transform(cnf, n_iter, skip, test, train, weights_from,  test_dir):
     config = util.load_module(cnf).config
 
     runs = {}
-    if train or train_dir:
+    if train:
         runs['train'] = config.get('train_dir')
     if test or test_dir:
         runs['test'] = test_dir or config.get('test_dir')
