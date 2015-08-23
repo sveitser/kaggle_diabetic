@@ -23,14 +23,14 @@ python convert.py --crop_size 128 --convert_directory data/train_tiny --extensio
 ########## Train Convolutional Networks ##########
 
 # Train network with 5x5 and 3x3 kernels.
-python train_nn.py --cnf config/c_128_5x5_32.py
-python train_nn.py --cnf config/c_256_5x5_32.py --weights_from weights/c_128_5x5_32/weights_final.pkl
-python train_nn.py --cnf config/c_512_5x5_32.py --weights_from weights/c_256_5x5_32/weights_final.pkl
+python train_nn.py --cnf configs/c_128_5x5_32.py
+python train_nn.py --cnf configs/c_256_5x5_32.py --weights_from weights/c_128_5x5_32/weights_final.pkl
+python train_nn.py --cnf configs/c_512_5x5_32.py --weights_from weights/c_256_5x5_32/weights_final.pkl
 
 # Train network with 4x4 kernels.
-python train_nn.py --cnf config/c_128_4x4_32.py
-python train_nn.py --cnf config/c_256_4x4_32.py --weights_from weights/c_128_4x4_32/weights_final.pkl
-python train_nn.py --cnf config/c_512_4x4_32.py --weights_from weights/c_256_4x4_32/weights_final.pkl
+python train_nn.py --cnf configs/c_128_4x4_32.py
+python train_nn.py --cnf configs/c_256_4x4_32.py --weights_from weights/c_128_4x4_32/weights_final.pkl
+python train_nn.py --cnf configs/c_512_4x4_32.py --weights_from weights/c_256_4x4_32/weights_final.pkl
 
 ########## Extract Features ##########
 
@@ -40,16 +40,16 @@ python train_nn.py --cnf config/c_512_4x4_32.py --weights_from weights/c_256_4x4
 
 # Extract features for network with 5x5 and 3x3 kernels.
 BEST_VALID_WEIGHTS="$(ls -t weights/c_512_5x5_32/best/ | head -n 1)"
-python transform.py --cnf config/c_512_5x5_32.py --train --test --n_iter 50 --weights_from "$BEST_VALID_WEIGHTS"
+python transform.py --cnf configs/c_512_5x5_32.py --train --test --n_iter 50 --weights_from weights/c_512_5x5_32/best/"$BEST_VALID_WEIGHTS"
 # by default weights with best validation kappa druing train run are loaded
-python transform.py --cnf config/c_512_5x5_32.py --train --test --n_iter 50 --skip 50
-python transform.py --cnf config/c_512_5x5_32.py --train --test --n_iter 50 --skip 100 --weights_from weights/c_512_5x5_32/weights_final.pkl
+python transform.py --cnf configs/c_512_5x5_32.py --train --test --n_iter 50 --skip 50
+python transform.py --cnf configs/c_512_5x5_32.py --train --test --n_iter 50 --skip 100 --weights_from weights/c_512_5x5_32/weights_final.pkl
 
 # Extract features for network with 4x4 kernels.
 BEST_VALID_WEIGHTS="$(ls -t weights/c_512_4x4_32/best/ | head -n 1)"
-python transform.py --cnf config/c_512_4x4_32.py --train --test --n_iter 50 --weights_from "$BEST_VALID_WEIGHTS"
-python transform.py --cnf config/c_512_4x4_32.py --train --test --n_iter 50 --skip 50
-python transform.py --cnf config/c_512_4x4_32.py --train --test --n_iter 50 --skip 100 --weights_from weights/c_512_4x4_32/weights_final.pkl
+python transform.py --cnf configs/c_512_4x4_32.py --train --test --n_iter 50 --weights_from weights/c_512_4x4_32/best/"$BEST_VALID_WEIGHTS"
+python transform.py --cnf configs/c_512_4x4_32.py --train --test --n_iter 50 --skip 50
+python transform.py --cnf configs/c_512_4x4_32.py --train --test --n_iter 50 --skip 100 --weights_from weights/c_512_4x4_32/weights_final.pkl
 
 ########## Blend Features ##########
 
