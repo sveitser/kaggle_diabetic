@@ -1,6 +1,7 @@
 """Conv Nets training script."""
 import click
 import numpy as np
+np.random.seed(9)
 
 import data
 import util

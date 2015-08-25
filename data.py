@@ -150,13 +150,13 @@ def load_perturbed(fname):
     return perturb(img)
 
 
-def augment_color(img, sigma=0.1, color_vec=None):
+def augment_color(img, sigma=0.1, color_vec=None, rng=np.random):
 
     if color_vec is None:
         if not sigma > 0.0:
             color_vec = np.zeros(3, dtype=np.float32)
         else:
-            color_vec = np.random.normal(0.0, sigma, 3)
+            color_vec = rng.normal(0.0, sigma, 3)
     
     alpha = color_vec.astype(np.float32) * EV
     noise = np.dot(U, alpha.T)
@@ -164,7 +164,7 @@ def augment_color(img, sigma=0.1, color_vec=None):
 
 
 def load_augment(fname, w, h, aug_params=no_augmentation_params,
-                 transform=None, sigma=0.0, color_vec=None):
+                 transform=None, sigma=0.0, color_vec=None, rng=np.random):
     """Load augmented image with output shape (w, h).
 
     Default arguments return non augmented image of shape (w, h).
@@ -174,13 +174,14 @@ def load_augment(fname, w, h, aug_params=no_augmentation_params,
     """
     img = load_image(fname)
     if transform is None:
-        img = perturb(img, augmentation_params=aug_params, target_shape=(w, h))
+        img = perturb(img, augmentation_params=aug_params, target_shape=(w, h),
+                      rng=rng)
     else:
         img = perturb_fixed(img, tform_augment=transform, target_shape=(w, h))
 
     np.subtract(img, MEAN[:, np.newaxis, np.newaxis], out=img)
     np.divide(img, STD[:, np.newaxis, np.newaxis], out=img)
-    img = augment_color(img, sigma=sigma, color_vec=color_vec)
+    img = augment_color(img, sigma=sigma, color_vec=color_vec, rng=rng)
     return img
 
 

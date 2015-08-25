@@ -7,38 +7,21 @@ from lasagne.nonlinearities import leaky_rectify
 from theano import tensor as T
 from theano.sandbox.cuda import dnn
 
-
-# import conv and pool layers
-# try CuDNN / cuda convnet / CPU in order
-try:
-    import lasagne.layers.dnn
-    Conv2DLayer = lasagne.layers.dnn.Conv2DDNNLayer
-    MaxPool2DLayer = lasagne.layers.dnn.MaxPool2DDNNLayer 
-    Pool2DLayer = lasagne.layers.dnn.Pool2DDNNLayer
-    print("using CUDNN backend")
-except ImportError:
-    print("failed to load CUDNN backend")
-    try:
-        import lasagne.layers.cuda_convnet
-        Conv2DLayer = lasagne.layers.cuda_convnet.Conv2DCCLayer
-        Pool2DLayer = lasagne.layers.cuda_convnet.Pool2DLayer
-        MaxPool2DLayer = lasagne.layers.cuda_convnet.MaxPool2DCCLayer
-        print("using CUDAConvNet backend")
-    except ImportError as exc:
-        print("failed to load CUDAConvNet backend")
-        Conv2DLayer = lasagne.layers.conv.Conv2DLayer
-        MaxPool2DLayer = lasagne.layers.pool.MaxPool2DLayer
-        Pool2DLayer = MaxPool2DLayer
-        print("using CPU backend")
+import lasagne.layers.corrmm
+Conv2DLayer = lasagne.layers.corrmm.Conv2DMMLayer
+MaxPool2DLayer = lasagne.layers.pool.MaxPool2DLayer
+Pool2DLayer = lasagne.layers.Pool2DLayer
+print("using corrm convolutions for determinism")
 
 
-def conv_params(num_filters, filter_size=(3, 3), border_mode='same',
+def conv_params(num_filters, filter_size=(3, 3), pad=1,#border_mode='same',
          nonlinearity=leaky_rectify, W=init.Orthogonal(gain=1.0),
          b=init.Constant(0.05), untie_biases=True, **kwargs):
     args = {
         'num_filters': num_filters,
         'filter_size': filter_size, 
-        'border_mode': border_mode,
+        #'border_mode': border_mode,
+        'pad': pad,
         'nonlinearity': nonlinearity, 
         'W': W, 
         'b': b,

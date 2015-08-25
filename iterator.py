@@ -10,9 +10,9 @@ import data
 
 
 def load_shared(args):
-    i, array_name, fname, kwargs = args
+    i, array_name, fname, rng, kwargs = args
     array = SharedArray.attach(array_name)
-    array[i] = data.load_augment(fname, **kwargs)
+    array[i] = data.load_augment(fname, rng=rng, **kwargs)
 
 
 class BatchIterator(object):
@@ -75,6 +75,7 @@ class SharedIterator(QueueIterator):
         self.config = config
         self.deterministic = deterministic
         self.pool = multiprocessing.Pool()
+        self.rngs = [np.random.RandomState(i) for i in range(128)]
         super(SharedIterator, self).__init__(*args, **kwargs)
 
 
@@ -96,7 +97,10 @@ class SharedIterator(QueueIterator):
                                    for k in ['aug_params', 'sigma']})
                 kwargs['transform'] = getattr(self, 'tf', None)
                 kwargs['color_vec'] = getattr(self, 'color_vec', None)
-                args.append((i, shared_array_name, fname, kwargs))
+                args.append((i, shared_array_name, fname, self.rngs[i], kwargs))
+
+                # advance the rng
+                self.rngs[i].rand()
 
             self.pool.map(load_shared, args)
             Xb = np.array(shared_array, dtype=np.float32)

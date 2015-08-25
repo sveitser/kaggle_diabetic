@@ -3,8 +3,9 @@ from time import time
 
 import lasagne
 import lasagne.layers
+from lasagne import regularization
 from lasagne.updates import nesterov_momentum
-from lasagne.objectives import Objective
+from lasagne.objectives import aggregate
 from lasagne.layers import get_all_layers, get_output, InputLayer
 from nolearn.lasagne import NeuralNet
 from nolearn.lasagne.handlers import SaveWeights
@@ -52,25 +53,21 @@ def create_net(config, **kwargs):
 
 
 def get_objective(l1=0.0, l2=0.0005):
-    class RegularizedObjective(Objective):
-
-        def get_loss(self, input=None, target=None, aggregation=None,
-                     deterministic=False, **kwargs):
-
-            l1_layer = get_all_layers(self.input_layer)[1]
-
-            loss = super(RegularizedObjective, self).get_loss(
-                input=input, target=target, aggregation=aggregation,
-                deterministic=deterministic, **kwargs)
-            if not deterministic:
-                return loss \
-                    + l1 * lasagne.regularization.regularize_layer_params(
-                        l1_layer, lasagne.regularization.l1) \
-                    + l2 * lasagne.regularization.regularize_network_params(
-                        self.input_layer, lasagne.regularization.l2)
-            else:
-                return loss
-    return RegularizedObjective
+    def objective(layers, loss_function, target, aggregate=aggregate,
+                  deterministic=False, get_output_kw=None):
+        if get_output_kw is None:
+            get_output_kw = {}
+        output_layer = layers[-1]
+        first_layer = layers[1]
+        network_output = lasagne.layers.get_output(
+            output_layer, deterministic=deterministic, **get_output_kw)
+        losses = loss_function(network_output, target) \
+                + l2 * regularization.regularize_network_params(
+                    output_layer, regularization.l2) \
+                + l1 * regularization.regularize_layer_params(
+                    first_layer, regularization.l1)
+        return aggregate(losses)
+    return objective
 
 
 class Schedule(object):
@@ -112,6 +109,14 @@ class SaveBestWeights(object):
 
 class Net(NeuralNet):
 
+    def __init__(self, eval_size, *args, **kwargs):
+        self.eval_size = eval_size
+        super(Net, self).__init__(*args, **kwargs)
+
+
+    def _check_good_input(self, X, y=None):
+        return X, y
+
     def train_test_split(self, X, y, eval_size):
         if eval_size:
             X_train, X_valid, y_train, y_valid = data.split(
@@ -138,19 +143,23 @@ class Net(NeuralNet):
         self.train_iter_, self.eval_iter_, self.predict_iter_, self.transform_iter_ = iter_funcs
         self._initialized = True
 
+
     def _create_iter_funcs(self, layers, objective, update, output_type):
         y_batch = output_type('y_batch')
 
-        output_layer = list(layers.values())[-1]
-        objective_params = self._get_params_for('objective')
-        obj = objective(output_layer, **objective_params)
-        if not hasattr(obj, 'layers'):
-            # XXX breaking the Lasagne interface a little:
-            obj.layers = layers
+        output_layer = layers[-1]
+        objective_kw = self._get_params_for('objective')
 
-        loss_train = obj.get_loss(None, y_batch)
-        loss_eval = obj.get_loss(None, y_batch, deterministic=True)
+        loss_train = objective(
+            layers, target=y_batch, **objective_kw)
+        loss_eval = objective(
+            layers, target=y_batch, deterministic=True, **objective_kw)
         predict_proba = get_output(output_layer, None, deterministic=True)
+        if not self.regression:
+            predict = predict_proba.argmax(axis=1)
+            accuracy = T.mean(T.eq(predict, y_batch))
+        else:
+            accuracy = loss_eval
 
         try:
             transform = get_output([v for k, v in layers.items() 
@@ -159,12 +168,6 @@ class Net(NeuralNet):
         except IndexError:
             transform = get_output(layers.values()[-2], None,
                                    deterministic=True)
-
-        if not self.regression:
-            predict = predict_proba.argmax(axis=1)
-            accuracy = T.mean(T.eq(predict, y_batch))
-        else:
-            accuracy = loss_eval
 
         all_params = self.get_all_params(trainable=True)
         update_params = self._get_params_for('update')
@@ -181,20 +184,25 @@ class Net(NeuralNet):
             inputs=inputs,
             outputs=[loss_train],
             updates=updates,
+            allow_input_downcast=True,
             )
         eval_iter = theano.function(
             inputs=inputs,
             outputs=[loss_eval, accuracy],
+            allow_input_downcast=True,
             )
         predict_iter = theano.function(
             inputs=X_inputs,
             outputs=predict_proba,
+            allow_input_downcast=True,
             )
         transform_iter = theano.function(
             inputs=X_inputs,
             outputs=transform,
+            allow_input_downcast=True,
             )
         return train_iter, eval_iter, predict_iter, transform_iter
+
 
     def transform(self, X, transform=None, color_vec=None):
         features = []

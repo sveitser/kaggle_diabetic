@@ -76,7 +76,7 @@ def transform(cnf, n_iter, skip, test, train, weights_from,  test_dir):
                 Xs2 += X**2
 
             print('took {:6.1f} seconds'.format(time.time() - tic))
-            if i % 5 == 0 or n_iter < 5:
+            if i % 10 == 0 or n_iter < 5:
                 std = np.sqrt((Xs2 - Xs**2 / i) / (i - 1))
                 config.save_features(Xs / i, i, skip=skip,
                                      test=True if run == 'test' else False)
