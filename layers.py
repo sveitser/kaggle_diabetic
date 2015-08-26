@@ -1,17 +1,16 @@
 import lasagne
 from lasagne.layers import (DenseLayer, InputLayer, FeaturePoolLayer,
                             DropoutLayer)
+import lasagne.layers.corrmm
 from lasagne import init, layers
 from lasagne.nonlinearities import leaky_rectify
 
 from theano import tensor as T
 from theano.sandbox.cuda import dnn
 
-import lasagne.layers.corrmm
 Conv2DLayer = lasagne.layers.corrmm.Conv2DMMLayer
 MaxPool2DLayer = lasagne.layers.pool.MaxPool2DLayer
 Pool2DLayer = lasagne.layers.Pool2DLayer
-print("using corrm convolutions for determinism")
 
 
 def conv_params(num_filters, filter_size=(3, 3), pad=1,#border_mode='same',

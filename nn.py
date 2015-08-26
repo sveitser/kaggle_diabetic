@@ -61,11 +61,14 @@ def get_objective(l1=0.0, l2=0.0005):
         first_layer = layers[1]
         network_output = lasagne.layers.get_output(
             output_layer, deterministic=deterministic, **get_output_kw)
-        losses = loss_function(network_output, target) \
-                + l2 * regularization.regularize_network_params(
-                    output_layer, regularization.l2) \
-                + l1 * regularization.regularize_layer_params(
-                    first_layer, regularization.l1)
+        if not deterministic:
+            losses = loss_function(network_output, target) \
+                    + l2 * regularization.regularize_network_params(
+                        output_layer, regularization.l2) \
+                    + l1 * regularization.regularize_layer_params(
+                        first_layer, regularization.l1)
+        else:
+            losses = loss_function(network_output, target)
         return aggregate(losses)
     return objective
 

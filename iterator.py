@@ -70,12 +70,20 @@ class QueueIterator(BatchIterator):
             item = queue.get()
 
 
+def get_rng(name, deterministic):
+    max_seed = 4294967295
+    config_int = hash(name) + 1 if deterministic else 0
+    return np.random.RandomState(
+            (np.random.randint(max_seed) + config_int) % max_seed)
+
+
 class SharedIterator(QueueIterator):
     def __init__(self, config, deterministic=False, *args, **kwargs):
         self.config = config
         self.deterministic = deterministic
         self.pool = multiprocessing.Pool()
-        self.rngs = [np.random.RandomState(i) for i in range(128)]
+        self.rngs = [get_rng(config.get('name'), deterministic)
+                     for i in range(128)]
         super(SharedIterator, self).__init__(*args, **kwargs)
 
 
@@ -84,16 +92,16 @@ class SharedIterator(QueueIterator):
         shared_array_name = str(uuid4())
         try:
             shared_array = SharedArray.create(
-                shared_array_name, [len(Xb), 3, self.config.get('w'), 
+                shared_array_name, [len(Xb), 3, self.config.get('w'),
                                     self.config.get('h')], dtype=np.float32)
-                                        
+
             fnames, labels = super(SharedIterator, self).transform(Xb, yb)
             args = []
 
             for i, fname in enumerate(fnames):
                 kwargs = {k: self.config.get(k) for k in ['w', 'h']}
                 if not self.deterministic:
-                    kwargs.update({k: self.config.get(k) 
+                    kwargs.update({k: self.config.get(k)
                                    for k in ['aug_params', 'sigma']})
                 kwargs['transform'] = getattr(self, 'tf', None)
                 kwargs['color_vec'] = getattr(self, 'color_vec', None)
