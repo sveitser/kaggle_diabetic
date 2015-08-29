@@ -36,6 +36,7 @@ n = 32
 
 layers = [
     (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
+    (ToCC, {}),
     (Conv2DLayer, conv_params(n, filter_size=(5, 5), stride=(2, 2))),
     (Conv2DLayer, conv_params(n)),
     (MaxPool2DLayer, pool_params()),
@@ -50,7 +51,8 @@ layers = [
     (Conv2DLayer, conv_params(8 * n)),
     (Conv2DLayer, conv_params(8 * n)),
     (Conv2DLayer, conv_params(8 * n)),
-    (RMSPoolLayer, pool_params(stride=(3, 3))),
+    (FromCC, {}),
+    (RMSPoolLayer, {'pool_size': (3, 3), 'stride':(3, 3)}),
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, dense_params(1024)),
     (FeaturePoolLayer, {'pool_size': 2}),

@@ -39,7 +39,7 @@ def create_net(config, **kwargs):
         'eval_size': 0.1,
         'regression': True,
         'max_epochs': 1000,
-        'verbose': 2,
+        'verbose': 1,
         'update_learning_rate': theano.shared(
             util.float32(config.get('schedule')[0])),
         'update': nesterov_momentum,
@@ -81,6 +81,8 @@ class Schedule(object):
 
     def __call__(self, nn, train_history):
         epoch = train_history[-1]['epoch']
+        if epoch == 2:
+            raise StopIteration # TODO REMOVE
         if epoch in self.schedule:
             new_value = self.schedule[epoch]
             if new_value == 'stop':
@@ -239,6 +241,7 @@ class Net(NeuralNet):
             min([row['train_loss'] for row in self.train_history_]) if
             self.train_history_ else np.inf
             )
+
         for func in on_training_started:
             func(self, self.train_history_)
 

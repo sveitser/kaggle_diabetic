@@ -1,16 +1,20 @@
 import lasagne
 from lasagne.layers import (DenseLayer, InputLayer, FeaturePoolLayer,
                             DropoutLayer)
-import lasagne.layers.corrmm
+#import lasagne.layers.corrmm
+import lasagne.layers.cuda_convnet
 from lasagne import init, layers
 from lasagne.nonlinearities import leaky_rectify
 
 from theano import tensor as T
 from theano.sandbox.cuda import dnn
 
-Conv2DLayer = lasagne.layers.corrmm.Conv2DMMLayer
-MaxPool2DLayer = lasagne.layers.pool.MaxPool2DLayer
+#Conv2DLayer = lasagne.layers.corrmm.Conv2DMMLayer
+Conv2DLayer = lasagne.layers.cuda_convnet.Conv2DCCLayer
+MaxPool2DLayer = lasagne.layers.cuda_convnet.MaxPool2DCCLayer
 Pool2DLayer = lasagne.layers.Pool2DLayer
+ToCC = lasagne.layers.cuda_convnet.ShuffleBC01ToC01BLayer
+FromCC = lasagne.layers.cuda_convnet.ShuffleC01BToBC01Layer
 
 
 def conv_params(num_filters, filter_size=(3, 3), pad=1,#border_mode='same',
@@ -25,6 +29,7 @@ def conv_params(num_filters, filter_size=(3, 3), pad=1,#border_mode='same',
         'W': W, 
         'b': b,
         'untie_biases': untie_biases,
+        'dimshuffle': False,
     }
     args.update(kwargs)
     return args
@@ -34,6 +39,7 @@ def pool_params(pool_size=3, stride=(2, 2), **kwargs):
     args = {
         'pool_size': pool_size, 
         'stride': stride,
+        'dimshuffle': False,
     }
     args.update(kwargs)
     return args
@@ -55,7 +61,8 @@ class RMSPoolLayer(Pool2DLayer):
 
     from https://github.com/benanne/kaggle-ndsb/blob/master/tmp_dnn.py
     """
-    def __init__(self, incoming, pool_size, stride=None, pad=(0, 0), 
+    def __init__(self, incoming, pool_size, stride=None, pad=(0, 0),
+                 dimshuffle=False, # ignored
                  epsilon=1e-12, **kwargs):
         super(RMSPoolLayer, self).__init__(incoming, pool_size,  stride,
                                            pad, **kwargs)
