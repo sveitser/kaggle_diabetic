@@ -95,12 +95,13 @@ def get_estimator(n_features, files, labels, eval_size=0.1):
         (DenseLayer, {'num_units': 1, 'nonlinearity': None}),
     ]
     args = dict(
+        layers=layers,
         update=adam,
         update_learning_rate=theano.shared(util.float32(START_LR)),
         batch_iterator_train=ResampleIterator(BATCH_SIZE),
         batch_iterator_test=BatchIterator(BATCH_SIZE),
         objective=nn.get_objective(l1=L1, l2=L2),
-        eval_size=eval_size,
+        #eval_size=eval_size,
         custom_score=('kappa', util.kappa) if eval_size > 0.0 else None,
         on_epoch_finished=[
             nn.Schedule('update_learning_rate', SCHEDULE),
@@ -109,7 +110,7 @@ def get_estimator(n_features, files, labels, eval_size=0.1):
         max_epochs=N_ITER,
         verbose=1,
     )
-    net = BlendNet(layers, **args)
+    net = BlendNet(eval_size=eval_size, **args)
     net.set_split(files, labels)
     return net
 

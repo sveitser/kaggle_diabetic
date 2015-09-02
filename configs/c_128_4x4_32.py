@@ -46,16 +46,18 @@ n = 32
 
 layers = [
     (InputLayer, {'shape': (None, 3, cnf['w'], cnf['h'])}),
+    ] + ([(ToCC, {})] if CC else []) + [
     (Conv2DLayer, cp(n, stride=(2, 2))),
-    (Conv2DLayer, cp(n, border_mode=None, pad=2)),
+    (Conv2DLayer, cp(n, pad=2)),
     (MaxPool2DLayer, pool_params()),
     (Conv2DLayer, cp(2 * n, stride=(2, 2))),
-    (Conv2DLayer, cp(2 * n, border_mode=None, pad=2)),
+    (Conv2DLayer, cp(2 * n, pad=2)),
     (Conv2DLayer, cp(2 * n)),
     (MaxPool2DLayer, pool_params()),
-    (Conv2DLayer, cp(4 * n, border_mode=None, pad=2)),
+    (Conv2DLayer, cp(4 * n, pad=2)),
     (Conv2DLayer, cp(4 * n)),
-    (Conv2DLayer, cp(4 * n, border_mode=None, pad=2)),
+    (Conv2DLayer, cp(4 * n, pad=2)),
+    ] + ([(FromCC, {})] if CC else []) + [
     (RMSPoolLayer, pool_params()),
     (DropoutLayer, {'p': 0.5}),
     (DenseLayer, dense_params(1024)),

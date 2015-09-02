@@ -2,7 +2,7 @@ click==3.3
 ghalton==0.6
 -e git+https://github.com/benanne/Lasagne.git@0fbadeba314ec2d162587c81c907d6e212042ee2#egg=Lasagne-dev
 matplotlib==1.4.3
--e git+https://github.com/dnouri/nolearn.git@0d4702397a39cf6fbd8376a05dd0cc82dc9e2bffb#egg=nolearn-master
+-e git+https://github.com/dnouri/nolearn.git@1f02036969d975f8ff8309949eebad9cdee3521d#egg=nolearn-master
 numpy==1.9.2
 pandas==0.16.0
 Pillow==2.7.0

@@ -81,8 +81,6 @@ class Schedule(object):
 
     def __call__(self, nn, train_history):
         epoch = train_history[-1]['epoch']
-        if epoch == 2:
-            raise StopIteration # TODO REMOVE
         if epoch in self.schedule:
             new_value = self.schedule[epoch]
             if new_value == 'stop':
