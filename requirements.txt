@@ -6,6 +6,7 @@ matplotlib==1.4.3
 numpy==1.9.2
 pandas==0.16.0
 Pillow==2.7.0
+-e git+git@github.com:lisa-lab/pylearn2.git@74fd21b77f24620de442768cd15f22ad06c7fa2c#egg=pylearn2-master
 PyYAML==3.11
 scikit-image==0.11.3
 scikit-learn==0.16.1
