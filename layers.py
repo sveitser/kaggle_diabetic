@@ -20,6 +20,8 @@ if GPU:
         import lasagne.layers.cuda_convnet
         Conv2DLayer = lasagne.layers.cuda_convnet.Conv2DCCLayer
         MaxPool2DLayer = lasagne.layers.cuda_convnet.MaxPool2DCCLayer
+        ToCC = lasagne.layers.cuda_convnet.ShuffleBC01ToC01BLayer
+        FromCC = lasagne.layers.cuda_convnet.ShuffleC01BToBC01Layer
         CC = True
         print("using CUDA-convnet (for determinism)")
     else:
@@ -46,11 +48,11 @@ def conv_params(num_filters, filter_size=(3, 3), pad=1,#border_mode='same',
         'b': b,
         'untie_biases': untie_biases,
     }
+    args.update(kwargs)
     if CC:
         args['dimshuffle'] = False
     else:
         args.pop('partial_sum', None)
-    args.update(kwargs)
     return args
 
 
@@ -59,9 +61,9 @@ def pool_params(pool_size=3, stride=(2, 2), **kwargs):
         'pool_size': pool_size,
         'stride': stride,
     }
+    args.update(kwargs)
     if CC:
         args['dimshuffle'] = False
-    args.update(kwargs)
     return args
 
 

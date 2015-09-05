@@ -29,6 +29,9 @@ def transform(cnf, n_iter, skip, test, train, weights_from,  test_dir):
 
     config = util.load_module(cnf).config
 
+    config.cnf['batch_size_train'] = 128
+    config.cnf['batch_size_test'] = 128
+
     runs = {}
     if train:
         runs['train'] = config.get('train_dir')
